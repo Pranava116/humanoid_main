@@ -1,0 +1,16 @@
+{
+  "_notes": "squat = parameters (degrees / seconds). pose = optional per-motor overrides in degrees relative to the stand pose, e.g. {\"8\": 70} sets motor 8 exactly (the direction sign from walk.json is NOT applied to overrides). Leave pose empty to use the generated squat.",
+  "squat": {
+    "depth_deg": 30,
+    "knee_ratio": 2.0,
+    "ankle_gain": 1.0,
+    "arm_forward_deg": 0,
+    "down_s": 3.0,
+    "hold_s": 1.5,
+    "up_s": 3.0,
+    "pause_s": 1.0,
+    "reps": 3,
+    "update_hz": 50
+  },
+  "pose": {}
+}

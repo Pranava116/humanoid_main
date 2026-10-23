@@ -1,0 +1,35 @@
+# config/servos.yaml
+#
+# hardware_angle = center + (invert ? -logical : logical) + offset
+#   center comes from robot.yaml (servo_defaults.center)
+#   min_angle / max_angle are LOGICAL limits, applied before the offset
+#   home is the logical angle used for the home pose
+#
+# offset: null  = NOT CALIBRATED YET. The loader should refuse to move these.
+# Rename every joint_bX_chY to the real joint name (e.g. left_knee).
+# Limits below (-60..60) are conservative placeholders. Tighten after calibration.
+
+
+
+
+#review this properly later on this doesnt seem completely right 
+# ---------------- Board 0 (0x40) ----------------
+joint_b0_ch0:  {board: 0, channel: 0,  offset: 64.0,  invert: false, min_angle: -60, max_angle: 60, home: 0}
+joint_b0_ch1:  {board: 0, channel: 1,  offset: null,  invert: false, min_angle: -60, max_angle: 60, home: 0}
+joint_b0_ch2:  {board: 0, channel: 2,  offset: null,  invert: false, min_angle: -60, max_angle: 60, home: 0}
+joint_b0_ch3:  {board: 0, channel: 3,  offset: null,  invert: false, min_angle: -60, max_angle: 60, home: 0}
+joint_b0_ch4:  {board: 0, channel: 4,  offset: null,  invert: false, min_angle: -60, max_angle: 60, home: 0}
+joint_b0_ch5:  {board: 0, channel: 5,  offset: null,  invert: false, min_angle: -60, max_angle: 60, home: 0}
+joint_b0_ch6:  {board: 0, channel: 6,  offset: -3.0,  invert: false, min_angle: -60, max_angle: 60, home: 0}
+joint_b0_ch7:  {board: 0, channel: 7,  offset: -16.0, invert: false, min_angle: -60, max_angle: 60, home: 0}
+joint_b0_ch8:  {board: 0, channel: 8,  offset: -14.0, invert: false, min_angle: -60, max_angle: 60, home: 0}
+joint_b0_ch9:  {board: 0, channel: 9,  offset: -19.0, invert: false, min_angle: -60, max_angle: 60, home: 0}
+joint_b0_ch10: {board: 0, channel: 10, offset: -3.0,  invert: false, min_angle: -60, max_angle: 60, home: 0}
+joint_b0_ch11: {board: 0, channel: 11, offset: -39.0, invert: false, min_angle: -60, max_angle: 60, home: 0}
+joint_b0_ch12: {board: 0, channel: 12, offset: -21.0, invert: false, min_angle: -60, max_angle: 60, home: 0}
+joint_b0_ch13: {board: 0, channel: 13, offset: -39.0, invert: false, min_angle: -60, max_angle: 60, home: 0}
+joint_b0_ch14: {board: 0, channel: 14, offset: 1.0,   invert: false, min_angle: -60, max_angle: 60, home: 0}
+joint_b0_ch15: {board: 0, channel: 15, offset: -14.0, invert: false, min_angle: -60, max_angle: 60, home: 0}
+
+# ---------------- Board 1 (0x41) ----------------
+joint_b1_ch0:  {board: 1, channel: 0,  offset: null,  invert: false, min_angle: -60, max_angle: 60, home: 0}

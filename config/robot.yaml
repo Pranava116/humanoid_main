@@ -1,0 +1,39 @@
+# config/robot.yaml
+
+robot:
+  name: humanoid
+  servo_count: 17
+
+i2c:
+  bus: 1                  # Raspberry Pi default (/dev/i2c-1)
+
+pca_boards:
+  - id: 0
+    address: 0x40         # default address, no solder bridges
+    frequency: 50         # Hz, standard for hobby servos
+    channels: 16
+  - id: 1
+    address: 0x41         # A0 pad bridged
+    frequency: 50
+    channels: 16
+
+servo_defaults:           # used when servos.yaml doesn't override
+  min_pulse: 500          # microseconds
+  max_pulse: 2500
+  min_angle: 0
+  max_angle: 180
+
+motion:
+  update_rate: 50         # Hz, how often interpolation steps run
+  default_speed: 60       # deg/sec for moves with no speed given
+  max_speed: 180          # hard cap so nothing slams
+
+safety:
+  start_at_home: true     # move to home pose on startup
+  release_on_exit: true   # cut PWM when the program ends
+  home_pose: poses/home.yaml
+
+paths:
+  servos: config/servos.yaml
+  poses: poses/
+  sequences: sequences/
