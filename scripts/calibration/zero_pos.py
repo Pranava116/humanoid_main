@@ -34,7 +34,10 @@ import os
 
 PCA_I2C_ADDRESS = 0x40
 PWM_FREQUENCY   = 50
-OFFSETS_FILE    = "offsets.json"
+ROOT            = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+CALIB_DIR       = os.path.join(ROOT, "data", "calibration")
+MOTIONS_DIR     = os.path.join(ROOT, "data", "motions")
+OFFSETS_FILE    = os.path.join(CALIB_DIR, "offsets.json")
 
 # Software I2C bus created by the i2c-gpio overlay (GPIO23 = SDA, GPIO24 = SCL)
 I2C_BUS = 3

@@ -54,8 +54,11 @@ import termios
 PCA_I2C_ADDRESS = 0x40
 PWM_FREQUENCY   = 50
 I2C_BUS         = 3          # software I2C bus (GPIO23 SDA / GPIO24 SCL)
-OFFSETS_FILE    = "offsets.json"
-SQUAT_FILE      = "squat_at_zero.json"
+ROOT            = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+CALIB_DIR       = os.path.join(ROOT, "data", "calibration")
+MOTIONS_DIR     = os.path.join(ROOT, "data", "motions")
+OFFSETS_FILE    = os.path.join(CALIB_DIR, "offsets.json")
+SQUAT_FILE      = os.path.join(MOTIONS_DIR, "squat_at_zero.json")
 
 NUDGE_SMALL = 1.0            # degrees for ←/→
 NUDGE_BIG   = 5.0            # degrees for ↑/↓

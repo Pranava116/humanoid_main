@@ -8,7 +8,8 @@ import os
 # ─────────────────────────────
 PCA_I2C_ADDRESS = 0x40
 PWM_FREQUENCY   = 50
-OFFSETS_FILE    = "offsets.json"
+ROOT            = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+OFFSETS_FILE    = os.path.join(ROOT, "data", "calibration", "offsets.json")
 
 ANGLE_MIN = -90.0
 ANGLE_MAX =  90.0
