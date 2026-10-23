@@ -1,0 +1,10 @@
+# Raspberry Pi 4B, Python 3.9
+adafruit-blinka
+adafruit-circuitpython-pca9685
+adafruit-circuitpython-motor
+adafruit-circuitpython-servokit
+adafruit-extended-bus
+smbus2
+gpiozero
+RPi.GPIO
+pyyaml        # needed by humanoid/ package (config/*.yaml)
