@@ -26,10 +26,16 @@ Gait file format
 ----------------
   {"frames": [{"name": "stand", "duration": 1.0, "hold": 0.0,
                "angles": {"0": 0.0, ..., "15": 0.0}}],
-   "mirror_signs": {"6": 1, "7": 1, "8": 1, "9": 1, "10": 1, "1": 1, "2": 1},
+   "mirror_signs": {"6": 1, "7": 1, "8": 1, "9": 1, "10": 1, "0": 1, "1": 1, "2": 1},
    "playback": {"speed": 1.0}}
   mirror_signs is keyed by the first motor of each pair (6,11) (7,12) (8,13)
-  (9,14) (10,15) (1,3) (2,5).
+  (9,14) (10,15) (0,3) (1,4) (2,5).
+
+Motor map:
+  legs   right 6 hip roll, 7 thigh, 8 knee, 9 ankle, 10 foot roll
+         left 11 hip roll, 12 thigh, 13 knee, 14 ankle, 15 foot roll
+  arms   right 0 shoulder, 1 arm, 2 elbow
+         left  3 shoulder, 4 arm, 5 elbow
 
 Keys:
   ↑ / ↓     select motor (legs 6-15 first, then 0-5)
@@ -88,9 +94,9 @@ SPEED_MIN    = 0.2
 SPEED_MAX    = 3.0
 
 MOTOR_NAMES = {
-    0:  "head/neck",           1:  "left shoulder",
-    2:  "right waist",         3:  "right shoulder",
-    4:  "left arm",            5:  "left waist",
+    0:  "right shoulder",      1:  "right arm",
+    2:  "right elbow",         3:  "left shoulder",
+    4:  "left arm",            5:  "left elbow",
     6:  "right hip roll",      7:  "right thigh",
     8:  "right knee",          9:  "right ankle",
     10: "right foot roll",     11: "left hip roll",
@@ -100,7 +106,7 @@ MOTOR_NAMES = {
 
 SELECT_ORDER = list(range(6, 16)) + list(range(0, 6))   # legs first
 
-PAIRS    = [(6, 11), (7, 12), (8, 13), (9, 14), (10, 15), (1, 3), (2, 5)]
+PAIRS    = [(6, 11), (7, 12), (8, 13), (9, 14), (10, 15), (0, 3), (1, 4), (2, 5)]
 PAIR_OF  = {**{a: b for a, b in PAIRS}, **{b: a for a, b in PAIRS}}
 PAIR_KEY = {**{a: a for a, b in PAIRS}, **{b: a for a, b in PAIRS}}   # motor -> mirror_signs key
 
@@ -406,7 +412,7 @@ class Studio:
             else:
                 pair = "pair  —"
             print(f"  {mark} {ch:2d}  {MOTOR_NAMES[ch]:18} {fr['angles'][ch]:+7.1f}°   {pair}")
-            if ch == 15:
+            if ch in (15, 2):                # gap after the legs and after the right arm
                 print()
         print("-" * 62)
         if status:
