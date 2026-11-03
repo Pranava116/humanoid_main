@@ -1,4 +1,3 @@
-```yaml
 # config/servos.yaml
 #
 # hardware_angle = center + (invert ? -logical : logical) + offset
@@ -17,7 +16,7 @@
 
 # Arms
 L_shoulder_pitch: {board: 0, channel: 1, offset: null,  invert: false, min_angle: -90, max_angle: 90, home: 0}
-R_shoulder_pitch: {board: 0, channel: 3, offset: 64.0, invert: false, min_angle: -90, max_angle: 90, home: 0}
+R_shoulder_pitch: {board: 0, channel: 3, offset: null,  invert: false, min_angle: -90, max_angle: 90, home: 0}
 L_arm_roll:       {board: 0, channel: 4, offset: null,  invert: false, min_angle: -11.46, max_angle: 90, home: 0}
 
 # Legs - right
@@ -38,4 +37,3 @@ L_foot_roll:   {board: 0, channel: 15, offset: -14.0, invert: false, min_angle: 
 
 # Right arm
 R_arm_roll: {board: 1, channel: 0, offset: null, invert: false, min_angle: -11.46, max_angle: 90, home: 0}
-```
