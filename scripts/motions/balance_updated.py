@@ -75,6 +75,7 @@ Usage:
   python3 balance.py --frame 3          # balance frame 3 of gait.json
   python3 balance.py --check-imu        # only show IMU angles, no servos
   python3 balance.py --log tune.csv     # record tilt + corrections for later
+  python3 balance.py --offsets /path/to/offsets.json   # use an offsets file elsewhere
   python3 balance.py --dry              # no hardware, test the UI
 """
 
@@ -101,7 +102,7 @@ IMU_ADDRESS     = 0x68
 ROOT            = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 CALIB_DIR       = os.path.join(ROOT, "data", "calibration")
 MOTIONS_DIR     = os.path.join(ROOT, "data", "motions")
-OFFSETS_FILE    = os.path.join(CALIB_DIR, "offsets.json")
+OFFSETS_FILE    = os.path.join(CALIB_DIR, "offsets.json")   # stand trim per servo, {"0": 0.0, ... "15": 0.0}
 BALANCE_FILE    = os.path.join(CALIB_DIR, "balance.json")
 GAIT_FILE       = os.path.join(MOTIONS_DIR, "gait.json")
 UPDATE_HZ       = 50
@@ -202,12 +203,17 @@ class Keyboard:
 # ─────────────────────────────────────────────────────────────────────────────
 
 def load_offsets(filepath: str) -> dict:
+    """Stand offsets (degrees) per channel from offsets.json: {"6": 1.5, "7": -2.0, ...}"""
     if os.path.exists(filepath):
-        with open(filepath, "r") as f:
-            raw = json.load(f)
+        try:
+            with open(filepath, "r") as f:
+                raw = json.load(f)
+            offsets = {int(k): float(v) for k, v in raw.items()}
+        except (json.JSONDecodeError, ValueError, AttributeError) as e:
+            sys.exit(f"{filepath} could not be read ({e}). Expected {{\"0\": 0.0, ..., \"15\": 0.0}}.")
         print(f"Loaded stand offsets from {filepath}")
-        return {int(k): float(v) for k, v in raw.items()}
-    print(f"WARNING: {filepath} not found — using 0° offsets. Run calibrate.py first.")
+        return offsets
+    print(f"WARNING: {filepath} not found — using 0° offsets. Use --offsets PATH to point to it.")
     return {}
 
 
@@ -282,6 +288,7 @@ def load_settings(filepath: str) -> dict:
 
 
 def save_settings(filepath: str, settings: dict):
+    os.makedirs(os.path.dirname(filepath), exist_ok=True)   # first save: folder may not exist
     if os.path.exists(filepath):
         shutil.copy2(filepath, filepath + ".bak")      # keep the previous version
     tmp = filepath + ".tmp"
@@ -772,13 +779,15 @@ def main():
                    help="Only show IMU angles to check signs (servos are not driven)")
     p.add_argument("--log", type=str, default=None,
                    help="Write tilt + corrections to this CSV file")
+    p.add_argument("--offsets", type=str, default=OFFSETS_FILE,
+                   help="Path to offsets.json (default: data/calibration/offsets.json)")
     p.add_argument("--dry", action="store_true",
                    help="No hardware: fake IMU (i/k/j/l) and no servos")
     args = p.parse_args()
 
     settings = load_settings(BALANCE_FILE)
     pose_name, pose = load_pose(args.frame)
-    offsets = load_offsets(OFFSETS_FILE)
+    offsets = load_offsets(args.offsets)
     imu = IMU(settings["imu"], dry=args.dry)
     print("Calibrating gyro — keep the robot still...")
     imu.calibrate()
