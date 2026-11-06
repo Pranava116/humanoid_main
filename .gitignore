@@ -11,3 +11,11 @@ __pycache__/
 *.swo
 *~
 .DS_Store
+
+# Autonomy stack (feature/autonomy-stack)
+.env
+models/weights/
+logs/
+*.onnx
+*.zip
+.claude/settings.local.json

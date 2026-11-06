@@ -1,0 +1,119 @@
+<?xml version="1.0"?>
+<!-- humanoid_latest.urdf
+     Base link = torso (old pelvis + torso merged, one part).
+     Torso frame = old pelvis centre, so hip joint origins are unchanged.
+     Masses as given by user; inertias scaled to match. Knee range = full servo travel (+-90 deg). -->
+<robot name="humanoid">
+  <!-- torso: pelvis box (bottom) + upper box, 0.5 kg, CoM 0.0994 m above frame -->
+  <link name="torso">
+    <visual><origin xyz="0 0 0"/><geometry><box size="0.2 0.247 0.06"/></geometry><material name="torso_low_m"><color rgba="0.4 0.4 0.45 1"/></material></visual>
+    <visual><origin xyz="0 0 0.1575"/><geometry><box size="0.2 0.24 0.255"/></geometry><material name="torso_m"><color rgba="0.55 0.55 0.6 1"/></material></visual>
+    <collision><origin xyz="0 0 0"/><geometry><box size="0.2 0.247 0.06"/></geometry></collision>
+    <collision><origin xyz="0 0 0.1575"/><geometry><box size="0.2 0.24 0.255"/></geometry></collision>
+    <inertial><origin xyz="0 0 0.099388"/><mass value="0.5"/><inertia ixx="0.0071053" iyy="0.0063195" izz="0.0041192" ixy="0" ixz="0" iyz="0"/></inertial>
+  </link>
+  <link name="head">
+    <visual><origin xyz="0 0 0"/><geometry><box size="0.12 0.12 0.12"/></geometry><material name="head_m"><color rgba="0.3 0.3 0.35 1"/></material></visual>
+    <collision><origin xyz="0 0 0"/><geometry><box size="0.12 0.12 0.12"/></geometry></collision>
+    <inertial><origin xyz="0 0 0"/><mass value="0.092"/><inertia ixx="0.0002208" iyy="0.0002208" izz="0.0002208" ixy="0" ixz="0" iyz="0"/></inertial>
+  </link>
+  <joint name="neck_fixed" type="fixed"><parent link="torso"/><child link="head"/><origin xyz="0 0 0.345"/></joint>
+  <!-- R_shoulder_pitch = ch3 -->
+  <joint name="R_shoulder_pitch" type="revolute"><parent link="torso"/><child link="R_shoulder"/><origin xyz="0 -0.1585 0.265"/><axis xyz="0 1 0"/><limit lower="-1.57" upper="1.57" effort="1.08" velocity="6.0"/></joint>
+  <link name="R_shoulder">
+    <visual><origin xyz="0 0 0"/><geometry><box size="0.04 0.04 0.04"/></geometry><material name="R_shoulder_m"><color rgba="0.4 0.4 0.45 1"/></material></visual>
+    <collision><origin xyz="0 0 0"/><geometry><box size="0.04 0.04 0.04"/></geometry></collision>
+    <inertial><origin xyz="0 0 0"/><mass value="0.03"/><inertia ixx="8.0002e-06" iyy="8.0002e-06" izz="8.0002e-06" ixy="0" ixz="0" iyz="0"/></inertial>
+  </link>
+  <!-- R_arm_roll = 17th servo (2nd PCA9685) -->
+  <joint name="R_arm_roll" type="revolute"><parent link="R_shoulder"/><child link="R_arm"/><origin xyz="0 0 0"/><axis xyz="-1 0 0"/><limit lower="-0.2" upper="1.57" effort="1.08" velocity="6.0"/></joint>
+  <link name="R_arm">
+    <visual><origin xyz="0 0 -0.111"/><geometry><box size="0.059 0.067 0.222"/></geometry><material name="R_arm_m"><color rgba="0.5 0.5 0.55 1"/></material></visual>
+    <collision><origin xyz="0 0 -0.111"/><geometry><box size="0.059 0.067 0.222"/></geometry></collision>
+    <inertial><origin xyz="0 0 -0.111"/><mass value="0.1"/><inertia ixx="0.00044811" iyy="0.0004397" izz="6.6417e-05" ixy="0" ixz="0" iyz="0"/></inertial>
+  </link>
+  <!-- L_shoulder_pitch = ch1 -->
+  <joint name="L_shoulder_pitch" type="revolute"><parent link="torso"/><child link="L_shoulder"/><origin xyz="0 0.1585 0.265"/><axis xyz="0 1 0"/><limit lower="-1.57" upper="1.57" effort="1.08" velocity="6.0"/></joint>
+  <link name="L_shoulder">
+    <visual><origin xyz="0 0 0"/><geometry><box size="0.04 0.04 0.04"/></geometry><material name="L_shoulder_m"><color rgba="0.4 0.4 0.45 1"/></material></visual>
+    <collision><origin xyz="0 0 0"/><geometry><box size="0.04 0.04 0.04"/></geometry></collision>
+    <inertial><origin xyz="0 0 0"/><mass value="0.03"/><inertia ixx="8.0002e-06" iyy="8.0002e-06" izz="8.0002e-06" ixy="0" ixz="0" iyz="0"/></inertial>
+  </link>
+  <!-- L_arm_roll = ch4 -->
+  <joint name="L_arm_roll" type="revolute"><parent link="L_shoulder"/><child link="L_arm"/><origin xyz="0 0 0"/><axis xyz="1 0 0"/><limit lower="-0.2" upper="1.57" effort="1.08" velocity="6.0"/></joint>
+  <link name="L_arm">
+    <visual><origin xyz="0 0 -0.111"/><geometry><box size="0.059 0.067 0.222"/></geometry><material name="L_arm_m"><color rgba="0.5 0.5 0.55 1"/></material></visual>
+    <collision><origin xyz="0 0 -0.111"/><geometry><box size="0.059 0.067 0.222"/></geometry></collision>
+    <inertial><origin xyz="0 0 -0.111"/><mass value="0.1"/><inertia ixx="0.00044811" iyy="0.0004397" izz="6.6417e-05" ixy="0" ixz="0" iyz="0"/></inertial>
+  </link>
+  <!-- R_hip_roll = PCA9685 ch6 -->
+  <joint name="R_hip_roll" type="revolute"><parent link="torso"/><child link="R_hip"/><origin xyz="0 -0.06 -0.03"/><axis xyz="1 0 0"/><limit lower="-0.6" upper="0.6" effort="1.08" velocity="6.0"/></joint>
+  <link name="R_hip">
+    <visual><origin xyz="0 0 -0.03"/><geometry><box size="0.054 0.067 0.06"/></geometry><material name="R_hip_m"><color rgba="0.7 0.7 0.75 1"/></material></visual>
+    <collision><origin xyz="0 0 -0.03"/><geometry><box size="0.054 0.067 0.06"/></geometry></collision>
+    <inertial><origin xyz="0 0 -0.03"/><mass value="0.028"/><inertia ixx="8.8318e-05" iyy="7.1144e-05" izz="8.085e-05" ixy="0" ixz="0" iyz="0"/></inertial>
+  </link>
+  <!-- R_hip_pitch = PCA9685 ch7 -->
+  <joint name="R_hip_pitch" type="revolute"><parent link="R_hip"/><child link="R_thigh"/><origin xyz="0 0 -0.06"/><axis xyz="0 1 0"/><limit lower="-1.5" upper="1.5" effort="1.08" velocity="6.0"/></joint>
+  <link name="R_thigh">
+    <visual><origin xyz="0 0 -0.0675"/><geometry><box size="0.043 0.059 0.135"/></geometry><material name="R_thigh_m"><color rgba="0.7 0.7 0.75 1"/></material></visual>
+    <collision><origin xyz="0 0 -0.0675"/><geometry><box size="0.043 0.059 0.135"/></geometry></collision>
+    <inertial><origin xyz="0 0 -0.0675"/><mass value="0.098"/><inertia ixx="0.00026899" iyy="0.00024877" izz="6.6052e-05" ixy="0" ixz="0" iyz="0"/></inertial>
+  </link>
+  <!-- R_knee = PCA9685 ch8 -->
+  <joint name="R_knee" type="revolute"><parent link="R_thigh"/><child link="R_shin"/><origin xyz="0 0 -0.135"/><axis xyz="0 1 0"/><limit lower="-1.57" upper="1.57" effort="1.08" velocity="6.0"/></joint>
+  <link name="R_shin">
+    <visual><origin xyz="0 0 -0.063"/><geometry><box size="0.043 0.068 0.126"/></geometry><material name="R_shin_m"><color rgba="0.7 0.7 0.75 1"/></material></visual>
+    <collision><origin xyz="0 0 -0.063"/><geometry><box size="0.043 0.068 0.126"/></geometry></collision>
+    <inertial><origin xyz="0 0 -0.063"/><mass value="0.083"/><inertia ixx="0.00023613" iyy="0.00020416" izz="7.4558e-05" ixy="0" ixz="0" iyz="0"/></inertial>
+  </link>
+  <!-- R_ankle_pitch = PCA9685 ch9 -->
+  <joint name="R_ankle_pitch" type="revolute"><parent link="R_shin"/><child link="R_ankle"/><origin xyz="0 0 -0.126"/><axis xyz="0 1 0"/><limit lower="-1.0" upper="1.0" effort="1.08" velocity="6.0"/></joint>
+  <link name="R_ankle">
+    <visual><origin xyz="0 0 -0.0335"/><geometry><box size="0.047 0.078 0.067"/></geometry><material name="R_ankle_m"><color rgba="0.7 0.7 0.75 1"/></material></visual>
+    <collision><origin xyz="0 0 -0.0335"/><geometry><box size="0.047 0.078 0.067"/></geometry></collision>
+    <inertial><origin xyz="0 0 -0.0335"/><mass value="0.049"/><inertia ixx="9.1315e-05" iyy="5.7848e-05" izz="7.1624e-05" ixy="0" ixz="0" iyz="0"/></inertial>
+  </link>
+  <!-- R_foot_roll = PCA9685 ch10 -->
+  <joint name="R_foot_roll" type="revolute"><parent link="R_ankle"/><child link="R_foot"/><origin xyz="0 0 -0.067"/><axis xyz="1 0 0"/><limit lower="-0.6" upper="0.6" effort="1.08" velocity="6.0"/></joint>
+  <link name="R_foot">
+    <visual><origin xyz="0.04 0 -0.012"/><geometry><box size="0.16 0.1 0.024"/></geometry><material name="R_foot_m"><color rgba="0.7 0.7 0.75 1"/></material></visual>
+    <collision><origin xyz="0.04 0 -0.012"/><geometry><box size="0.16 0.1 0.024"/></geometry></collision>
+    <inertial><origin xyz="0.04 0 -0.012"/><mass value="0.19881"/><inertia ixx="0.00013996" iyy="0.00034642" izz="0.00047114" ixy="0" ixz="0" iyz="0"/></inertial>
+  </link>
+  <!-- L_hip_roll = PCA9685 ch11 -->
+  <joint name="L_hip_roll" type="revolute"><parent link="torso"/><child link="L_hip"/><origin xyz="0 0.06 -0.03"/><axis xyz="1 0 0"/><limit lower="-0.6" upper="0.6" effort="1.08" velocity="6.0"/></joint>
+  <link name="L_hip">
+    <visual><origin xyz="0 0 -0.03"/><geometry><box size="0.054 0.067 0.06"/></geometry><material name="L_hip_m"><color rgba="0.7 0.7 0.75 1"/></material></visual>
+    <collision><origin xyz="0 0 -0.03"/><geometry><box size="0.054 0.067 0.06"/></geometry></collision>
+    <inertial><origin xyz="0 0 -0.03"/><mass value="0.028"/><inertia ixx="8.8318e-05" iyy="7.1144e-05" izz="8.085e-05" ixy="0" ixz="0" iyz="0"/></inertial>
+  </link>
+  <!-- L_hip_pitch = PCA9685 ch12 -->
+  <joint name="L_hip_pitch" type="revolute"><parent link="L_hip"/><child link="L_thigh"/><origin xyz="0 0 -0.06"/><axis xyz="0 1 0"/><limit lower="-1.5" upper="1.5" effort="1.08" velocity="6.0"/></joint>
+  <link name="L_thigh">
+    <visual><origin xyz="0 0 -0.0675"/><geometry><box size="0.043 0.059 0.135"/></geometry><material name="L_thigh_m"><color rgba="0.7 0.7 0.75 1"/></material></visual>
+    <collision><origin xyz="0 0 -0.0675"/><geometry><box size="0.043 0.059 0.135"/></geometry></collision>
+    <inertial><origin xyz="0 0 -0.0675"/><mass value="0.093"/><inertia ixx="0.00026899" iyy="0.00024877" izz="6.6052e-05" ixy="0" ixz="0" iyz="0"/></inertial>
+  </link>
+  <!-- L_knee = PCA9685 ch13 -->
+  <joint name="L_knee" type="revolute"><parent link="L_thigh"/><child link="L_shin"/><origin xyz="0 0 -0.135"/><axis xyz="0 1 0"/><limit lower="-1.57" upper="1.57" effort="1.08" velocity="6.0"/></joint>
+  <link name="L_shin">
+    <visual><origin xyz="0 0 -0.063"/><geometry><box size="0.043 0.068 0.126"/></geometry><material name="L_shin_m"><color rgba="0.7 0.7 0.75 1"/></material></visual>
+    <collision><origin xyz="0 0 -0.063"/><geometry><box size="0.043 0.068 0.126"/></geometry></collision>
+    <inertial><origin xyz="0 0 -0.063"/><mass value="0.083"/><inertia ixx="0.00023613" iyy="0.00020416" izz="7.4558e-05" ixy="0" ixz="0" iyz="0"/></inertial>
+  </link>
+  <!-- L_ankle_pitch = PCA9685 ch14 -->
+  <joint name="L_ankle_pitch" type="revolute"><parent link="L_shin"/><child link="L_ankle"/><origin xyz="0 0 -0.126"/><axis xyz="0 1 0"/><limit lower="-1.0" upper="1.0" effort="1.08" velocity="6.0"/></joint>
+  <link name="L_ankle">
+    <visual><origin xyz="0 0 -0.0335"/><geometry><box size="0.047 0.078 0.067"/></geometry><material name="L_ankle_m"><color rgba="0.7 0.7 0.75 1"/></material></visual>
+    <collision><origin xyz="0 0 -0.0335"/><geometry><box size="0.047 0.078 0.067"/></geometry></collision>
+    <inertial><origin xyz="0 0 -0.0335"/><mass value="0.049"/><inertia ixx="9.1315e-05" iyy="5.7848e-05" izz="7.1624e-05" ixy="0" ixz="0" iyz="0"/></inertial>
+  </link>
+  <!-- L_foot_roll = PCA9685 ch15 -->
+  <joint name="L_foot_roll" type="revolute"><parent link="L_ankle"/><child link="L_foot"/><origin xyz="0 0 -0.067"/><axis xyz="1 0 0"/><limit lower="-0.6" upper="0.6" effort="1.08" velocity="6.0"/></joint>
+  <link name="L_foot">
+    <visual><origin xyz="0.04 0 -0.012"/><geometry><box size="0.16 0.1 0.024"/></geometry><material name="L_foot_m"><color rgba="0.7 0.7 0.75 1"/></material></visual>
+    <collision><origin xyz="0.04 0 -0.012"/><geometry><box size="0.16 0.1 0.024"/></geometry></collision>
+    <inertial><origin xyz="0.04 0 -0.012"/><mass value="0.1981"/><inertia ixx="0.00013996" iyy="0.00034642" izz="0.00047114" ixy="0" ixz="0" iyz="0"/></inertial>
+  </link>
+</robot>

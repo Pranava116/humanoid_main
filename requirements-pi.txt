@@ -1,0 +1,9 @@
+# Raspberry Pi 4B, Python 3.9 — runs robot.run on the real robot.
+# Camera (Pi camera): sudo apt install -y python3-picamera2  (use a venv with --system-site-packages)
+# TTS: sudo apt install -y espeak-ng
+numpy>=1.21,<2.1
+pyyaml>=6.0
+adafruit-circuitpython-servokit
+adafruit-extended-bus
+smbus2
+pyzmq>=25

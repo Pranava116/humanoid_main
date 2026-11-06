@@ -1,0 +1,4 @@
+# Laptop / CI: everything the tests and the sim need. Python 3.9+ (3.9 matches the Pi).
+-r requirements-pi.txt
+mujoco==3.3.0          # last release with Python 3.9 wheels; newer is fine on Python >= 3.10
+pytest>=7

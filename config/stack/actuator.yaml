@@ -1,0 +1,15 @@
+# config/stack/actuator.yaml — MG996R model, used by the SimBackend AND the RL env.
+# Tune from real measurements with tools/measure_actuator.py.
+
+mg996r:
+  kp: 20.0                 # N·m/rad, MuJoCo position actuator gain
+  kv: 0.08                 # N·m·s/rad, actuator damping
+  torque_limit: 1.08       # N·m, actuator force range
+  max_speed: 6.0           # rad/s, slew limit of the servo's internal reference
+  deadband_deg: 1.0        # no torque when |reference - position| is below this
+  backlash_deg: 1.5        # +- half width of gear play (hysteresis on the reference)
+  latency_ms: [20.0, 40.0] # command latency range; sim uses the mean, RL randomises
+  lag_tau_ms: 30.0         # first-order lag of the reference
+  armature: 0.002          # kg·m², reflected rotor inertia
+  damping: 0.05            # N·m·s/rad, joint damping
+  frictionloss: 0.02       # N·m, joint dry friction

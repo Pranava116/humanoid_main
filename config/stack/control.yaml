@@ -1,0 +1,19 @@
+# config/stack/control.yaml — control loop, safety, telemetry.
+
+loop:
+  rate_hz: 50
+  overrun_warn_ms: 5.0       # warn when a tick starts this late
+  resync_after_ticks: 2      # if more than this many ticks behind, skip ahead instead of bursting
+  spin_ms: 2.0               # busy-wait the last ms of each tick (OS sleep overshoots); 0 = pure sleep
+
+safety:
+  max_joint_speed_dps: 240   # commanded speed limit for every joint (deg/s)
+  soft_start_s: 2.0          # after boot / reset: slower speed limit for this long
+  soft_start_speed_dps: 45
+  estop:
+    first: hold              # first press: hold the last pose
+    second: release          # second press: PWM off (robot drops)
+
+telemetry:
+  ring_seconds: 30
+  csv_dir: logs              # used when --csv is given
