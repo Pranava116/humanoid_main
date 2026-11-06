@@ -53,8 +53,7 @@ class SimBackend(Backend):
         rng = [joint_range(self.joints[n]) for n in names]
         self.lo = np.array([r[0] for r in rng])
         self.hi = np.array([r[1] for r in rng])
-        self.kp0 = self.model.actuator_gainprm[self.act_ids, 0].copy()
-        self.kv0 = -self.model.actuator_biasprm[self.act_ids, 2].copy()
+        self.apply_actuator_params(cfg.actuator)
 
         self.servo = MG996R(cfg.actuator, len(names), self.physics_dt)
         self.cmd = np.array([self.joints[n].default_rad for n in names])
@@ -112,6 +111,22 @@ class SimBackend(Backend):
         self.released = False
         self.mj.mj_forward(self.model, self.data)
         self.time = 0.0
+
+    def apply_actuator_params(self, act) -> None:
+        """Push MG996R params (kp, kv, torque, joint damping/armature/friction) into the model.
+
+        The scene file has the same values baked in, but applying them here means config
+        changes (and RL domain randomisation) take effect without regenerating scene.xml.
+        """
+        m = self.model
+        self.kp0 = np.full(len(self.act_ids), act.kp)
+        self.kv0 = np.full(len(self.act_ids), act.kv)
+        m.actuator_forcerange[self.act_ids] = (-act.torque_limit, act.torque_limit)
+        m.actuator_forcelimited[self.act_ids] = 1
+        m.dof_damping[self.qvel_adr] = act.damping
+        m.dof_armature[self.qvel_adr] = act.armature
+        m.dof_frictionloss[self.qvel_adr] = act.frictionloss
+        self._set_gains(1.0)
 
     def _set_gains(self, scale: float) -> None:
         self.model.actuator_gainprm[self.act_ids, 0] = self.kp0 * scale

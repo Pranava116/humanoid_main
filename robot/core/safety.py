@@ -1,7 +1,8 @@
 """Safety layer: everything that commands joints goes through ``Safety.filter``.
 
 - clamps every joint to its reachable range (same range as the HAL mapping)
-- limits commanded joint speed (slower during soft start)
+- limits commanded joint speed (slower during soft start); the whole step is scaled
+  uniformly so multi-joint motions keep their shape
 - e-stop latch: first press HOLD (commands frozen), second press RELEASE (torque off)
 
 There are no encoders, so soft start cannot know where the servos really are at
@@ -95,16 +96,21 @@ class Safety:
             self.limited = 0
             return dict(self.last)
         max_d = self.speed_limit() * dt
+        clamped: Dict[str, float] = {}
+        scale = 1.0
+        for j in self.joints:
+            q = clamp_joint(j, targets.get(j.name, self.last[j.name]))
+            clamped[j.name] = q
+            step = abs(q - self.last[j.name])
+            if step > max_d:
+                scale = min(scale, max_d / step)
+        # scale the whole step uniformly so coordinated motions (knee + hip + ankle) stay coordinated
         out: Dict[str, float] = {}
         limited = 0
         for j in self.joints:
             want = targets.get(j.name, self.last[j.name])
-            q = clamp_joint(j, want)
             prev = self.last[j.name]
-            if q - prev > max_d:
-                q = prev + max_d
-            elif prev - q > max_d:
-                q = prev - max_d
+            q = prev + (clamped[j.name] - prev) * scale
             if abs(q - want) > 1e-9:
                 limited += 1
             out[j.name] = q

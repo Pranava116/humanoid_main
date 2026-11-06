@@ -1,0 +1,46 @@
+# config/stack/motion.yaml — keyframe playback, leg IK and the static walk generator.
+# Lengths in metres, times in seconds, angles in degrees. Leg link lengths come from the URDF.
+
+interp: minjerk            # minjerk | smoothstep | linear
+blend_s: 0.8               # default time to move from the current pose into a new motion
+motions_dir: robot/motion/motions    # hand-tuned keyframe files (json); generated if missing
+
+stance:
+  height_ratio: 0.86       # ankle depth below the hip-pitch axis, as a fraction of thigh + shin
+  torso_pitch_deg: 0.0     # lean the torso forward (+) by tilting the legs
+
+walk:                      # static (quasi-static) gait: CoM over the stance foot before each lift
+  step_length: 0.06        # how far the swing foot travels per step
+  step_height: 0.025       # foot lift
+  com_shift: 0.45          # CoM goes this fraction of the way to the stance sole centre (1 = above it)
+  swing_roll_deg: 2.0      # extra outward hip roll on the swing leg for clearance
+  t_shift: 1.0             # weight shift
+  t_lift: 0.25
+  t_swing: 0.35
+  t_lower: 0.25
+  hold: 0.35               # pause after each weight shift (lets the sway settle)
+  hold_step: 0.3           # pause after lift / swing / lower
+  touchdown: 0.0           # swing foot target this far below the floor (0 was most stable in sim)
+
+side_step:
+  width: 0.03              # lateral foot travel per step
+  step_height: 0.02
+  com_shift: 0.45
+  t_shift: 1.0
+  t_move: 0.3
+  hold: 0.3
+  touchdown: 0.0
+
+turn:                      # no hip yaw: stagger the feet in the air, then scissor them back in double support
+  stagger: 0.03            # each foot moves +-stagger
+  step_height: 0.02
+  com_shift: 0.45
+  t_shift: 1.0
+  t_move: 0.3
+  t_scissor: 0.9
+  hold: 0.3
+  touchdown: 0.0
+
+gestures:
+  wave_cycles: 3
+  wave_period: 0.8

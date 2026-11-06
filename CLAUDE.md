@@ -49,7 +49,17 @@ robot/core/
   telemetry.py             ring buffer + CSV
   app.py                   RobotApp: requests -> IMU -> controller.tick -> safety -> backend -> telemetry
 robot/run.py               main entry point
+robot/motion/
+  keyframe.py              Motion/Frame json (degrees, joint names), legacy importer
+  interp.py player.py      minjerk/smoothstep; MotionPlayer (blends from the current pose, loops)
+  ik.py walkgen.py         leg IK + CoM model; static walk / side step / shuffle turn generators
+  library.py               named motions (json in motions/ overrides generated)
+  mirror.py                L/R mirror signs from URDF axes
+  studio.py play.py        Gait Studio v2, play one motion (--report in sim)
 ```
+
+Safety's speed limit scales the whole step uniformly (per-joint clipping broke coordinated
+motions and toppled the robot). Tools that start a motion should wait out soft start first.
 
 A controller is any object with `tick(ctx) -> {joint: rad}` plus `state`/`behavior` strings
 (`robot.core.app.Controller`). Other threads only call `RobotApp.request_*()` (thread-safe queue).
