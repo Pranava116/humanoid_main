@@ -7,3 +7,6 @@ adafruit-circuitpython-servokit
 adafruit-extended-bus
 smbus2
 pyzmq>=25
+opencv-python-headless>=4.8,<4.11   # USB camera + JPEG frames for the dashboard
+fastapi>=0.100                      # dashboard (can also run on the laptop instead)
+uvicorn>=0.23

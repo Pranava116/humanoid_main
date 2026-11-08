@@ -1,0 +1,290 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Humanoid Dashboard</title>
+<style>
+  :root {
+    --bg: #f4f5f7; --panel: #ffffff; --text: #1d2026; --muted: #6b7280; --line: #e3e5e9;
+    --accent: #2563eb; --ok: #15803d; --warn: #b45309; --bad: #b91c1c; --btn: #eef1f5;
+    --roll: #2563eb; --pitch: #d97706; --bar: #93b4f5;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #121418; --panel: #1b1e24; --text: #e6e8ec; --muted: #9aa1ad; --line: #2b2f37;
+      --accent: #60a5fa; --ok: #4ade80; --warn: #fbbf24; --bad: #f87171; --btn: #262a32;
+      --roll: #60a5fa; --pitch: #fbbf24; --bar: #3b5fa8;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text);
+         font: 14px/1.4 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  header { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding: 12px 16px;
+           background: var(--panel); border-bottom: 1px solid var(--line); position: sticky; top: 0; z-index: 2; }
+  header h1 { font-size: 16px; margin: 0 8px 0 0; }
+  .badge { padding: 3px 10px; border-radius: 999px; font-weight: 600; font-size: 13px; background: var(--btn); }
+  .badge.ok { color: var(--ok); } .badge.warn { color: var(--warn); } .badge.bad { color: #fff; background: var(--bad); }
+  .muted { color: var(--muted); }
+  .spacer { flex: 1; }
+  #estop { background: var(--bad); color: #fff; border: 0; border-radius: 8px; padding: 10px 22px;
+           font-size: 16px; font-weight: 700; cursor: pointer; letter-spacing: .5px; }
+  #estop:active { transform: scale(.97); }
+  main { display: grid; gap: 12px; padding: 12px 16px; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); }
+  section { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 12px; min-width: 0; }
+  section h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin: 0 0 10px; }
+  button.cmd { background: var(--btn); color: var(--text); border: 1px solid var(--line); border-radius: 8px;
+               padding: 8px 12px; font-size: 14px; cursor: pointer; min-width: 64px; }
+  button.cmd:hover { border-color: var(--accent); }
+  .row { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+  .pad { display: grid; grid-template-columns: repeat(3, 72px); gap: 6px; margin-bottom: 8px; }
+  .pad button { min-width: 0; }
+  label { font-size: 13px; color: var(--muted); }
+  input[type=range] { width: 140px; vertical-align: middle; }
+  .kv { display: grid; grid-template-columns: auto 1fr; gap: 2px 12px; font-variant-numeric: tabular-nums; }
+  .kv span:nth-child(odd) { color: var(--muted); }
+  canvas { width: 100%; height: 120px; display: block; }
+  .joint { display: grid; grid-template-columns: 120px 1fr 56px; align-items: center; gap: 8px; font-size: 12px;
+           font-variant-numeric: tabular-nums; }
+  .track { position: relative; height: 8px; background: var(--btn); border-radius: 4px; }
+  .track .zero { position: absolute; top: -2px; bottom: -2px; width: 1px; background: var(--muted); }
+  .track .fill { position: absolute; top: 0; bottom: 0; background: var(--bar); border-radius: 4px; }
+  #cam { width: 100%; aspect-ratio: 4 / 3; object-fit: contain; background: #000; border-radius: 6px; }
+  #log { height: 220px; overflow: auto; font: 12px/1.35 ui-monospace, Menlo, monospace; white-space: pre-wrap;
+         background: var(--bg); padding: 8px; border-radius: 6px; }
+  ul.small { margin: 0; padding-left: 18px; font-size: 12px; }
+  .wide { grid-column: 1 / -1; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Humanoid</h1>
+  <span id="conn" class="badge warn">connecting</span>
+  <span id="state" class="badge">—</span>
+  <span id="behavior" class="muted">—</span>
+  <span id="estopState" class="muted"></span>
+  <span class="spacer"></span>
+  <button id="estop" title="1st press: hold, 2nd press: release torque (key: space)">E-STOP</button>
+  <button class="cmd" data-kind="reset" title="key: r">Reset</button>
+</header>
+
+<main>
+  <section>
+    <h2>Drive</h2>
+    <div class="pad">
+      <button class="cmd" data-kind="turn" data-args='{"direction":"L"}' title="q">⟲ Turn</button>
+      <button class="cmd" data-walk="1,0" title="w / ↑">▲ Fwd</button>
+      <button class="cmd" data-kind="turn" data-args='{"direction":"R"}' title="e">Turn ⟳</button>
+      <button class="cmd" data-kind="side_step" data-args='{"direction":"L"}' title="a / ←">◀ Side</button>
+      <button class="cmd" data-kind="stop" title="x">■ Stop</button>
+      <button class="cmd" data-kind="side_step" data-args='{"direction":"R"}' title="d / →">Side ▶</button>
+      <span></span>
+      <button class="cmd" data-walk="-1,0" title="s / ↓">▼ Back</button>
+      <span></span>
+    </div>
+    <div class="row">
+      <label>speed <input id="speed" type="range" min="0.005" max="0.04" step="0.005"> <span id="speedv"></span> m/s</label>
+    </div>
+    <div class="row">
+      <button class="cmd" data-kind="stand">Stand</button>
+      <button class="cmd" data-kind="sit">Sit</button>
+      <button class="cmd" data-kind="follow">Follow me</button>
+      <button class="cmd" data-kind="come_here">Come here</button>
+    </div>
+    <h2>Gestures</h2>
+    <div class="row" id="gestures"></div>
+    <div class="row">
+      <input id="sayText" placeholder="say…" style="flex:1;min-width:0;padding:7px;border-radius:8px;border:1px solid var(--line);background:var(--bg);color:var(--text)">
+      <button class="cmd" id="sayBtn">Say</button>
+    </div>
+  </section>
+
+  <section>
+    <h2>IMU</h2>
+    <div class="kv" id="imu"></div>
+    <canvas id="plot" width="600" height="120" aria-label="roll and pitch, last 20 s"></canvas>
+    <div class="muted" style="font-size:12px"><span style="color:var(--roll)">■</span> roll
+      <span style="color:var(--pitch)">■</span> pitch, last 20 s, ±60°</div>
+  </section>
+
+  <section>
+    <h2>Camera</h2>
+    <img id="cam" alt="robot camera (no frame yet)">
+  </section>
+
+  <section>
+    <h2>Joint targets (deg)</h2>
+    <div id="joints"></div>
+  </section>
+
+  <section>
+    <h2>State history</h2>
+    <ul class="small" id="history"></ul>
+    <h2 style="margin-top:12px">Rejected commands</h2>
+    <ul class="small" id="rejected"></ul>
+  </section>
+
+  <section class="wide">
+    <h2>Log</h2>
+    <div id="log"></div>
+  </section>
+</main>
+
+<script>
+"use strict";
+const $ = (id) => document.getElementById(id);
+const deg = (r) => r * 180 / Math.PI;
+let meta = { joints: [], gestures: [], default_speed: 0.02 };
+let ws = null, history = [], jointRows = {};
+
+function speed() { return parseFloat($("speed").value); }
+
+function send(kind, args) {
+  const body = { kind, args: args || {} };
+  if (ws && ws.readyState === 1) ws.send(JSON.stringify(body));
+  else fetch("/api/command", { method: "POST", headers: { "Content-Type": "application/json" },
+                               body: JSON.stringify(body) });
+}
+
+function bindButtons(root) {
+  root.querySelectorAll("button[data-kind], button[data-walk]").forEach((b) => {
+    b.onclick = () => {
+      if (b.dataset.walk) {
+        const [fx, fy] = b.dataset.walk.split(",").map(Number);
+        send("walk", { vx: fx * speed(), vy: fy * speed(), yaw: 0 });
+      } else send(b.dataset.kind, b.dataset.args ? JSON.parse(b.dataset.args) : {});
+    };
+  });
+}
+
+function buildJoints() {
+  const box = $("joints");
+  box.innerHTML = "";
+  for (const j of meta.joints) {
+    const row = document.createElement("div");
+    row.className = "joint";
+    row.innerHTML = `<span>${j.name}</span><div class="track"><div class="zero"></div><div class="fill"></div></div><span>—</span>`;
+    const lo = j.min, hi = j.max, span = hi - lo || 1;
+    row.querySelector(".zero").style.left = `${(-lo / span) * 100}%`;
+    jointRows[j.name] = { row, lo, span };
+    box.appendChild(row);
+  }
+}
+
+function updateJoints(targets) {
+  for (const [name, q] of Object.entries(targets || {})) {
+    const r = jointRows[name];
+    if (!r) continue;
+    const z = (-r.lo / r.span) * 100, p = ((q - r.lo) / r.span) * 100;
+    const fill = r.row.querySelector(".fill");
+    fill.style.left = `${Math.min(z, p)}%`;
+    fill.style.width = `${Math.abs(p - z)}%`;
+    r.row.lastChild.textContent = deg(q).toFixed(1);
+  }
+}
+
+function drawPlot() {
+  const c = $("plot"), g = c.getContext("2d"), w = c.width, h = c.height;
+  const css = getComputedStyle(document.documentElement);
+  g.clearRect(0, 0, w, h);
+  g.strokeStyle = css.getPropertyValue("--line");
+  g.beginPath(); g.moveTo(0, h / 2); g.lineTo(w, h / 2); g.stroke();
+  const n = history.length;
+  [["--roll", 0], ["--pitch", 1]].forEach(([color, k]) => {
+    g.strokeStyle = css.getPropertyValue(color); g.lineWidth = 2; g.beginPath();
+    history.forEach((v, i) => {
+      const x = (i / Math.max(1, 199)) * w, y = h / 2 - (v[k] / 60) * (h / 2);
+      i ? g.lineTo(x, y) : g.moveTo(x, y);
+    });
+    if (n) g.stroke();
+  });
+}
+
+function list(id, items) {
+  $(id).innerHTML = (items || []).slice().reverse().map((t) => `<li>${t.replace(/</g, "&lt;")}</li>`).join("")
+    || '<li class="muted">none</li>';
+}
+
+function update(s) {
+  const conn = $("conn");
+  conn.textContent = s.connected ? "connected" : "disconnected";
+  conn.className = "badge " + (s.connected ? "ok" : "warn");
+  if (!s.state) return;
+  const st = $("state");
+  st.textContent = s.state;
+  st.className = "badge " + (["FALLEN", "ESTOP"].includes(s.state) ? "bad" : s.state === "IDLE" ? "ok" : "");
+  $("behavior").textContent = s.behavior + (s.follow ? ` · ${s.follow}` : "");
+  $("estopState").textContent = s.estop !== "NONE" ? `estop ${s.estop}${s.estop_reason ? " (" + s.estop_reason + ")" : ""}` : "";
+  const [r, p, y] = s.imu.rpy.map(deg), gy = s.imu.gyro.map(deg), a = s.imu.accel;
+  $("imu").innerHTML = [
+    ["roll / pitch / yaw", `${r.toFixed(1)}° / ${p.toFixed(1)}° / ${y.toFixed(1)}°`],
+    ["gyro °/s", gy.map((v) => v.toFixed(0)).join(" / ")],
+    ["accel m/s²", a.map((v) => v.toFixed(2)).join(" / ")],
+    ["t / late", `${s.t.toFixed(1)} s / ${s.late_ms.toFixed(1)} ms`],
+  ].map(([k, v]) => `<span>${k}</span><span>${v}</span>`).join("");
+  history.push([r, p]);
+  if (history.length > 200) history.shift();
+  drawPlot();
+  updateJoints(s.targets);
+  list("history", s.history);
+  list("rejected", s.rejected);
+}
+
+function appendLogs(lines) {
+  if (!lines || !lines.length) return;
+  const box = $("log"), stick = box.scrollTop + box.clientHeight >= box.scrollHeight - 4;
+  box.textContent += lines.map((l) => l[1]).join("\n") + "\n";
+  if (box.textContent.length > 60000) box.textContent = box.textContent.slice(-40000);
+  if (stick) box.scrollTop = box.scrollHeight;
+}
+
+function connect() {
+  ws = new WebSocket((location.protocol === "https:" ? "wss://" : "ws://") + location.host + "/ws");
+  ws.onmessage = (ev) => {
+    const m = JSON.parse(ev.data);
+    if (m.status) update(m.status);
+    appendLogs(m.logs);
+  };
+  ws.onclose = () => { update({ connected: false }); setTimeout(connect, 1000); };
+}
+
+function pollCamera() {
+  const img = new Image();
+  img.onload = () => { $("cam").src = img.src; setTimeout(pollCamera, 400); };
+  img.onerror = () => setTimeout(pollCamera, 2000);
+  img.src = "/camera.jpg?t=" + Date.now();
+}
+
+const KEYS = {
+  " ": () => send("estop"), r: () => send("reset"), x: () => send("stop"),
+  w: () => send("walk", { vx: speed(), vy: 0, yaw: 0 }), ArrowUp: () => send("walk", { vx: speed(), vy: 0, yaw: 0 }),
+  s: () => send("walk", { vx: -speed(), vy: 0, yaw: 0 }), ArrowDown: () => send("walk", { vx: -speed(), vy: 0, yaw: 0 }),
+  a: () => send("side_step", { direction: "L" }), ArrowLeft: () => send("side_step", { direction: "L" }),
+  d: () => send("side_step", { direction: "R" }), ArrowRight: () => send("side_step", { direction: "R" }),
+  q: () => send("turn", { direction: "L" }), e: () => send("turn", { direction: "R" }),
+};
+document.addEventListener("keydown", (ev) => {
+  if (ev.target.tagName === "INPUT" && ev.target.type === "text") return;
+  const fn = KEYS[ev.key];
+  if (fn) { ev.preventDefault(); fn(); }
+});
+
+$("estop").onclick = () => send("estop");
+$("sayBtn").onclick = () => { const t = $("sayText").value.trim(); if (t) send("say", { text: t }); $("sayText").value = ""; };
+$("sayText").addEventListener("keydown", (ev) => { if (ev.key === "Enter") $("sayBtn").click(); });
+$("speed").oninput = () => { $("speedv").textContent = speed().toFixed(3); };
+
+fetch("/api/meta").then((r) => r.json()).then((m) => {
+  meta = m;
+  $("speed").value = m.default_speed; $("speed").oninput();
+  $("gestures").innerHTML = m.gestures.map((g) =>
+    `<button class="cmd" data-kind="gesture" data-args='{"name":"${g}"}'>${g.replace(/_/g, " ")}</button>`).join("");
+  buildJoints();
+  bindButtons(document);
+});
+bindButtons(document);
+connect();
+pollCamera();
+</script>
+</body>
+</html>

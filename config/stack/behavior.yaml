@@ -1,0 +1,33 @@
+# config/stack/behavior.yaml — state machine, fall detection, walking controller.
+
+boot_s: 2.0                  # hold the boot pose this long (>= soft start) before standing up
+stand_motion: ready          # pose used for STAND / IDLE (knees bent, ready to walk)
+
+fall:
+  tilt_deg: 45.0             # torso tilt that counts as a fall
+  rate_dps: 300.0            # or this angular rate (any axis)
+  ticks: 3                   # consecutive ticks over a threshold
+  safe_move_s: 0.3           # move to the safe pose this fast
+  release_after_s: 1.0       # then cut torque (-1 = keep holding the safe pose)
+  safe_pose_deg:             # knees bent, arms in: what the robot does while falling
+    R_hip_pitch: -30.0
+    L_hip_pitch: -30.0
+    R_knee: 60.0
+    L_knee: 60.0
+    R_ankle_pitch: -30.0
+    L_ankle_pitch: -30.0
+
+walking:
+  controller: keyframe       # keyframe | rl
+  min_step_scale: 0.4        # slowest gait = this fraction of the tuned step length
+  turn_threshold: 0.15       # rad/s: |yaw| above this (and dominant) -> shuffle turn
+  side_threshold: 0.01       # m/s:  |vy| above this (and dominant) -> side step
+  default_speed: 0.02        # m/s used by "walk forward" without a speed
+
+gestures:                    # command -> library motion
+  wave: wave_R
+  wave_left: wave_L
+  wave_right: wave_R
+  bow: bow
+  raise_arms: raise_arms
+  squat: squat

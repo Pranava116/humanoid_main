@@ -1,0 +1,20 @@
+# config/stack/network.yaml — link between the robot process and its clients (dashboard, teleop, voice, vision).
+#
+# The robot process (robot.run) binds; clients connect to robot_host. With everything on one
+# machine leave robot_host at 127.0.0.1. For a laptop talking to the Pi set robot_host to the Pi's
+# address (or pass --connect HOST). There is no authentication: anyone on the LAN can command the
+# robot, so keep it on a private network (set bind to 127.0.0.1 to allow local clients only).
+
+robot_host: 127.0.0.1
+bind: "*"                    # address the robot process binds to ("*" = all interfaces)
+command_port: 5555           # clients PUSH commands -> robot PULLs
+telemetry_port: 5556         # robot PUBs telemetry, log lines and camera JPEGs
+
+telemetry_hz: 10             # status snapshots per second sent to clients
+camera_hz: 2                 # camera JPEGs per second (0 = off); grabbed in the control loop
+camera_jpeg_quality: 70
+log_lines: 200               # log tail kept for the dashboard
+
+dashboard:
+  host: 0.0.0.0              # 127.0.0.1 = this machine only
+  port: 8000

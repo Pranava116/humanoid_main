@@ -39,6 +39,11 @@ sudo i2cdetect -y 1     # 68 (MPU9250)
 | Robot process, sim, faster than realtime | `python -m robot.run --backend sim --duration 5 --fast` |
 | Robot process, sim with viewer | `mjpython -m robot.run --backend sim --viewer` |
 | Robot process, real robot, log CSV | `python -m robot.run --backend real --csv` |
+| Robot + web dashboard in one process | `python -m robot.run --backend sim --dashboard` → http://localhost:8000 |
+| Dashboard on a laptop, robot on the Pi | Pi: `python -m robot.run --backend real`; laptop: `python -m robot.interface.dashboard --connect <pi-ip>` |
+| Keyboard teleop (connects to robot.run) | `python -m robot.interface.teleop [--connect <pi-ip>]` |
+| Keyboard teleop, robot in the same process | `mjpython -m robot.interface.teleop --local --backend sim --viewer` |
+| Scripted commands (and sim pushes) | `python -m robot.run --backend sim --fast --duration 30 --at 4:walk:vx=0.02,duration=5 --at 16:gesture:name=wave --at 24:push:x=45,s=0.3` |
 
 | List / play a library motion | `python -m robot.motion.play --list` / `python -m robot.motion.play wave_R --backend sim --report` |
 | Gait Studio v2 (keyframe editor) | `python -m robot.motion.studio walk_forward_cycle --backend sim` |
@@ -47,6 +52,28 @@ sudo i2cdetect -y 1     # 68 (MPU9250)
 
 Keys in `robot.run`: **space** = e-stop (1st press holds the pose, 2nd press cuts torque), **r** = reset,
 **q** = quit.
+
+## Behaviour, dashboard, teleop
+
+`robot.run` runs the behaviour state machine (`--controller hold` = M1 stand only):
+
+```
+BOOT -> STAND -> IDLE <-> WALKING | GESTURE | SIT | FOLLOW
+any -> FALLEN (IMU tilt > 45° or rate > 300°/s for 3 ticks: crouch, then cut torque after 1 s)
+any -> ESTOP;  FALLEN / ESTOP -> STAND only on "reset"
+```
+
+Commands not allowed in the current state are rejected (shown on the dashboard), e.g. a gesture while
+walking: send `stop` first. Fall test in the viewer: `mjpython -m robot.run --backend sim --viewer`,
+double-click the torso, then ctrl + right-drag to push it over.
+
+Network (`config/stack/network.yaml`): `robot.run` binds ZeroMQ on ports 5555 (commands in) and 5556
+(telemetry, log tail, camera JPEGs out). Dashboard and teleop connect to `robot_host` or `--connect`.
+**No authentication**: anyone on the network can drive the robot. Keep it on a private network, or set
+`bind: 127.0.0.1` and `dashboard.host: 127.0.0.1` to allow this machine only. `--no-link` turns the
+link off.
+
+Dashboard keys: w/a/s/d or arrows walk, q/e turn, x stop, space e-stop, r reset.
 
 Notes:
 - On macOS on battery `time.sleep` overshoots by ~6 ms, so a realtime sim run reports overruns. That is the
@@ -68,6 +95,8 @@ All tunables are in `config/stack/`:
 | `control.yaml` | loop rate, safety limits, soft start, e-stop, telemetry |
 | `actuator.yaml` | MG996R model (sim + RL): kp, torque, speed, deadband, backlash, latency, lag |
 | `motion.yaml` | interpolation, stance, walk / side-step / turn generator parameters, gestures |
+| `behavior.yaml` | state machine timings, fall detection and safe pose, walking controller, gesture names |
+| `network.yaml` | robot address, ZeroMQ ports, telemetry / camera rates, dashboard host and port |
 
 ## Motions
 

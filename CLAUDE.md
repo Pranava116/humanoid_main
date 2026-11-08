@@ -56,7 +56,21 @@ robot/motion/
   library.py               named motions (json in motions/ overrides generated)
   mirror.py                L/R mirror signs from URDF axes
   studio.py play.py        Gait Studio v2, play one motion (--report in sim)
+robot/behavior/
+  commands.py              Command(kind, args, source) + thread-safe CommandQueue
+  fsm.py                   BehaviorFSM (the Controller): states, ALLOWED commands per state
+  fall.py walking.py       FallDetector; Walker interface + KeyframeWalker (gait_mode from vx, vy, yaw)
+  runtime.py               RobotRuntime = backend + RobotApp + FSM; send(cmd) routes estop/reset to the app
+robot/interface/
+  bus.py                   Link (ZmqLink | LocalLink) for clients, LinkServer in the robot process
+  dashboard.py static/     FastAPI + websocket, one index.html
+  teleop.py logtail.py     keyboard teleop; log ring buffer for the dashboard
 ```
+
+Every command source (dashboard, teleop, voice, perception) sends `Command` objects through a `Link`;
+`RobotRuntime.send` is the only entry point. Snapshots and camera frames are produced in the loop
+thread (hooks) so other threads never touch the backend. On fall / e-stop the FSM calls
+`walker.abort()` (not `stop()`) so the gait does not resume after reset.
 
 Safety's speed limit scales the whole step uniformly (per-joint clipping broke coordinated
 motions and toppled the robot). Tools that start a motion should wait out soft start first.
