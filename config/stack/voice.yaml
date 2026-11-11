@@ -1,0 +1,61 @@
+# config/stack/voice.yaml — voice command pipeline.
+#
+# STT engine: "text" (type commands), "vosk" (offline, small, fast), "whisper" (better accuracy, slower)
+# TTS engine: "espeak" (apt install espeak-ng), "piper" (neural, needs piper-tts), "none" (silent)
+
+stt:
+  engine: text                 # text | vosk | whisper
+  vosk:
+    model: small               # "small" = vosk-model-small-en-us-0.15 (~40 MB); or an absolute path
+    sample_rate: 16000
+    grammar:                   # closed grammar for better accuracy (Vosk only, ignored by whisper)
+      - "walk forward"
+      - "walk backward"
+      - "walk back"
+      - "turn left"
+      - "turn right"
+      - "side step left"
+      - "side step right"
+      - "stop"
+      - "stand up"
+      - "sit down"
+      - "wave"
+      - "wave left"
+      - "wave right"
+      - "bow"
+      - "raise arms"
+      - "squat"
+      - "come here"
+      - "follow me"
+      - "emergency stop"
+      - "e stop"
+      - "reset"
+      - "hello"
+      - "how are you"
+      - "what is your name"
+      - "dance"
+  whisper:
+    model: tiny.en             # faster-whisper model name
+    device: cpu
+    compute_type: int8
+    beam_size: 1               # 1 = greedy (fastest)
+
+wake:
+  enabled: false               # require "hey robot" before each command
+  phrase: "hey robot"
+
+tts:
+  engine: espeak               # espeak | piper | none
+  espeak:
+    voice: en                  # espeak-ng voice/language
+    speed: 150                 # words per minute
+    pitch: 50                  # 0–99
+  piper:
+    model: en_US-lessac-medium
+
+llm:
+  enabled: false               # use an LLM (Claude Haiku) for free-form intent parsing
+  model: claude-3-haiku-20240307
+  max_tokens: 100
+  temperature: 0.0
+  timeout_s: 5.0
