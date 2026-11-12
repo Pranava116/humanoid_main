@@ -33,17 +33,16 @@ BOOT, STAND, IDLE, WALKING, GESTURE, SIT, FOLLOW, FALLEN, ESTOP = (
 STATES = (BOOT, STAND, IDLE, WALKING, GESTURE, SIT, FOLLOW, FALLEN, ESTOP)
 
 MOVING = {"walk", "turn", "side_step"}
-# command kinds accepted per state ("estop"/"reset" are routed to the RobotApp, see runtime.py)
 ALLOWED: Dict[str, Set[str]] = {
-    BOOT: {"say"},
-    STAND: {"stop", "say"},
-    IDLE: MOVING | {"gesture", "sit", "stand", "follow", "come_here", "stop", "say"},
-    WALKING: MOVING | {"stop", "follow", "come_here", "say"},
-    GESTURE: {"stop", "say"},
-    SIT: {"stand", "stop", "say"},
-    FOLLOW: MOVING | {"stop", "follow", "come_here", "say"},
-    FALLEN: {"say"},
-    ESTOP: {"say"},
+    BOOT: {"say", "person"},
+    STAND: {"stop", "say", "person"},
+    IDLE: MOVING | {"gesture", "sit", "stand", "follow", "come_here", "stop", "say", "person"},
+    WALKING: MOVING | {"stop", "follow", "come_here", "say", "person"},
+    GESTURE: {"stop", "say", "person"},
+    SIT: {"stand", "stop", "say", "person"},
+    FOLLOW: MOVING | {"stop", "follow", "come_here", "say", "person"},
+    FALLEN: {"say", "person"},
+    ESTOP: {"say", "person"},
 }
 
 
@@ -130,6 +129,10 @@ class BehaviorFSM(Controller):
             self._reject(cmd, "not allowed now")
             return
         k = cmd.kind
+        if k == "person":
+            if self.follow is not None and hasattr(self.follow, "on_observation"):
+                self.follow.on_observation(cmd.args)
+            return
         if k == "stop":
             if self.state in (WALKING, FOLLOW):
                 self.walker.stop()

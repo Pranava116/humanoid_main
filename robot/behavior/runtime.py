@@ -29,11 +29,19 @@ class RobotRuntime:
     """Builds and runs the behaviour stack on one backend."""
 
     def __init__(self, cfg: Config, backend: Backend, realtime: bool = True,
-                 fsm: Optional[BehaviorFSM] = None) -> None:
+                 fsm: Optional[BehaviorFSM] = None,
+                 follow: Optional[Any] = None,
+                 enable_perception: bool = False) -> None:
         self.cfg = cfg
         self.backend = backend
         self.library = MotionLibrary(cfg)
-        self.fsm = fsm or BehaviorFSM(cfg, self.library)
+        if fsm is None:
+            if follow is None and enable_perception:
+                from robot.behavior.follow import VisualFollowPlanner
+                follow = VisualFollowPlanner.from_config(cfg)
+            self.fsm = BehaviorFSM(cfg, self.library, follow=follow)
+        else:
+            self.fsm = fsm
         self.app = RobotApp(cfg, backend, self.fsm, realtime=realtime)
         rate = self.app.rate_hz
         self._snap_every = max(1, int(rate / max(0.1, float(cfg.get("network.telemetry_hz", 10)))))
@@ -42,6 +50,13 @@ class RobotRuntime:
         self.frame_hooks: List[FrameHook] = []    # called in the loop thread with each camera frame
         self._snapshot: Dict[str, Any] = {}
         self.app.hooks.append(self._on_tick)
+
+        self.perception_client: Optional[Any] = None
+        perc_hz = float(cfg.get("perception.camera.fps", 10.0))
+        self._perc_every = max(1, int(rate / perc_hz)) if perc_hz > 0 else 0
+        if enable_perception and self.backend.info().has_camera:
+            from robot.perception.client import PerceptionClient
+            self.perception_client = PerceptionClient.from_config(cfg, send_cmd=self.send)
 
     # ---------------------------------------------------------------- commands
     def send(self, cmd: Command) -> None:
@@ -62,6 +77,10 @@ class RobotRuntime:
             snap["estop_reason"] = app.safety.reason if app.safety.active else ""
             snap["wall_time"] = time.time()
             self._snapshot = snap
+        if self._perc_every and self.perception_client is not None and rec.tick % self._perc_every == 0:
+            frame = self.backend.get_camera_frame()
+            if frame is not None:
+                self.perception_client.process_frame(frame, t=rec.t)
         if self._cam_every and self.frame_hooks and rec.tick % self._cam_every == 0:
             frame = self.backend.get_camera_frame()
             if frame is not None:

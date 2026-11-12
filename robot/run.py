@@ -120,6 +120,9 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--no-link", action="store_true", help="do not open the network link (ZeroMQ)")
     p.add_argument("--dashboard", action="store_true", help="serve the web dashboard from this process")
     p.add_argument("--dashboard-port", type=int, help="dashboard port (default network.dashboard.port)")
+    p.add_argument("--person", choices=("none", "static", "moving", "circle"), default=None,
+                   help="simulated person in MuJoCo (sim only)")
+    p.add_argument("--perception", action="store_true", help="enable in-process person perception and visual follow")
     p.add_argument("--at", type=parse_at, action="append", default=[], metavar="T:KIND[:k=v,..]",
                    help="send a command at loop time T (repeatable); KIND 'push' shoves the sim torso")
     return p
@@ -156,12 +159,20 @@ def main(argv: Optional[List[str]] = None) -> int:
         log.warning("joints disabled (board missing): %s", ", ".join(info.missing_joints))
     tail = LogTail(int(cfg.get("network.log_lines", 200))).install()
     realtime = realtime_from_args(args)
+    enable_perc = args.perception or (args.person is not None and args.person != "none")
     if args.controller == "hold":
         runtime = None
         app = RobotApp(cfg, backend, HoldPose(cfg.joints.default_pose()), realtime=realtime)
     else:
-        runtime = RobotRuntime(cfg, backend, realtime=realtime)
+        runtime = RobotRuntime(cfg, backend, realtime=realtime, enable_perception=enable_perc)
         app = runtime.app
+    if args.person and args.person != "none":
+        if hasattr(backend, "set_person"):
+            from robot.sim.person import PersonMover
+            app.hooks.append(PersonMover(backend, mode=args.person))
+            log.info("simulated person enabled (mode=%s)", args.person)
+        else:
+            log.warning("--person is only supported with --backend sim")
     link = start_link(cfg, runtime, tail) if runtime is not None and not args.no_link else None
     dash = start_dashboard(cfg, runtime, tail, args.dashboard_port) if runtime is not None and args.dashboard else None
     if args.at:

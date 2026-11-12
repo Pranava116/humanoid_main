@@ -10,9 +10,10 @@ from typing import Any, Dict, List, Optional
 
 KINDS = (
     "stand", "sit", "stop", "walk", "turn", "side_step", "gesture",
-    "follow", "come_here", "estop", "reset", "say",
+    "follow", "come_here", "estop", "reset", "say", "person",
 )
-SOURCES = ("voice", "dashboard", "teleop", "auto", "test", "network")
+SOURCES = ("voice", "dashboard", "teleop", "auto", "test", "network", "perception")
+
 
 _ids = itertools.count(1)
 

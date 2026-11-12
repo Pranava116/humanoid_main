@@ -1,0 +1,39 @@
+# Perception stack configuration: camera, person detector, tracker, and follow behavior
+
+camera:
+  source: auto          # "auto" (picamera2 -> opencv), "picamera2", "opencv", "none"
+  width: 320
+  height: 240
+  fps: 15.0
+  fovy_deg: 50.0        # camera vertical FOV in degrees (matches sim camera)
+  index: 0              # USB camera index for OpenCV
+
+detector:
+  backend: color_blob   # "color_blob" (sim/test default), "yolo_onnx", "mobilenet_ssd"
+  confidence_threshold: 0.4
+  yolo_model: models/weights/yolov8n.onnx
+  mobilenet_proto: models/weights/mobilenet_ssd.prototxt
+  mobilenet_weights: models/weights/mobilenet_ssd.caffemodel
+  color_blob:
+    # Target red shirt in MuJoCo scene: rgba="0.85 0.1 0.1 1"
+    r_min: 140
+    g_max: 80
+    b_max: 80
+    min_pixels: 30
+
+tracker:
+  max_lost_s: 2.0
+  alpha_bearing: 0.4
+  alpha_size: 0.4
+
+follow:
+  target_size: 0.28             # target bbox height as fraction of frame (approx 1.2m away)
+  target_bearing: 0.0           # center of image
+  kp_yaw: 1.2                   # yaw rate gain (rad/s per rad bearing error)
+  kp_dist: 0.15                 # forward speed gain (m/s per size error)
+  max_vx: 0.025                 # max forward velocity (m/s)
+  max_yaw: 0.5                  # max yaw rate (rad/s)
+  deadband_bearing_rad: 0.05    # ~3 degrees deadband
+  deadband_size: 0.03           # size error deadband
+  lost_timeout_s: 3.0           # timeout if person lost
+  close_size_threshold: 0.26    # for 'come_here': stop when size >= this
