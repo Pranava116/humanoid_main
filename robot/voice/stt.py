@@ -53,29 +53,25 @@ class VoskSTT:
         self.sample_rate = int(cfg_vosk.get("sample_rate", 16000))
         self.grammar = cfg_vosk.get("grammar")  # type: Optional[list]
 
-    def _get_model_path(self) -> str:
-        """Resolve model name to a path, downloading the small model if needed."""
+    def _load_model(self) -> Any:
+        """A directory path loads that model; "small" (or any name) downloads by name to ~/.cache/vosk."""
         import os
-        if os.path.isabs(self.model_name) or os.path.isdir(self.model_name):
-            return self.model_name
-        # Vosk looks for models in the current dir or ~/.cache/vosk
+
         from vosk import Model  # type: ignore[import-untyped]
-        cache = os.path.join(os.path.expanduser("~"), ".cache", "vosk")
-        path = os.path.join(cache, self.SMALL_MODEL)
-        if os.path.isdir(path):
-            return path
-        # Let vosk download it
-        log.info("downloading Vosk model '%s' (first run only)...", self.SMALL_MODEL)
-        return self.SMALL_MODEL
+        if os.path.isdir(self.model_name):
+            return Model(self.model_name)
+        name = self.SMALL_MODEL if self.model_name == "small" else self.model_name
+        log.info("loading Vosk model '%s' (downloads on first run)...", name)
+        return Model(model_name=name)
 
     def listen(self) -> Generator[str, None, None]:
         import json as _json
         import queue
 
         import sounddevice as sd  # type: ignore[import-untyped]
-        from vosk import KaldiRecognizer, Model  # type: ignore[import-untyped]
+        from vosk import KaldiRecognizer  # type: ignore[import-untyped]
 
-        model = Model(self._get_model_path())
+        model = self._load_model()
         if self.grammar:
             rec = KaldiRecognizer(model, self.sample_rate, _json.dumps(self.grammar))
         else:
@@ -95,7 +91,7 @@ class VoskSTT:
                 data = audio_q.get()
                 if rec.AcceptWaveform(data):
                     result = _json.loads(rec.Result())
-                    text = result.get("text", "").strip()
+                    text = result.get("text", "").replace("[unk]", "").strip()
                     if text:
                         log.debug("vosk: '%s'", text)
                         yield text
@@ -114,9 +110,7 @@ class WhisperSTT:
         self.beam_size = int(cfg_whisper.get("beam_size", 1))
 
     def listen(self) -> Generator[str, None, None]:
-        import io
         import queue
-        import wave
 
         import numpy as np
         import sounddevice as sd  # type: ignore[import-untyped]
@@ -125,8 +119,7 @@ class WhisperSTT:
         model = WhisperModel(self.model_name, device=self.device,
                              compute_type=self.compute_type)
         sample_rate = 16000
-        chunk_s = 3.0  # process audio in chunks
-        chunk_samples = int(sample_rate * chunk_s)
+        max_bytes = sample_rate * 2 * 10   # cap one utterance at 10 s (int16) so steady noise cannot grow it
         silence_threshold = 500  # RMS below this = silence
         audio_q = queue.Queue()  # type: queue.Queue[bytes]
 
@@ -149,16 +142,16 @@ class WhisperSTT:
                 elif buffer:
                     silence_chunks += 1
                     buffer += data
-                    if silence_chunks >= 3:
-                        # End of utterance; transcribe
-                        audio_array = np.frombuffer(buffer, dtype=np.int16).astype(np.float32) / 32768.0
-                        segments, _ = model.transcribe(audio_array, beam_size=self.beam_size)
-                        text = " ".join(s.text for s in segments).strip()
-                        buffer = b""
-                        silence_chunks = 0
-                        if text:
-                            log.debug("whisper: '%s'", text)
-                            yield text
+                if buffer and (silence_chunks >= 3 or len(buffer) >= max_bytes):
+                    # End of utterance; transcribe
+                    audio_array = np.frombuffer(buffer, dtype=np.int16).astype(np.float32) / 32768.0
+                    segments, _ = model.transcribe(audio_array, beam_size=self.beam_size)
+                    text = " ".join(s.text for s in segments).strip()
+                    buffer = b""
+                    silence_chunks = 0
+                    if text:
+                        log.debug("whisper: '%s'", text)
+                        yield text
 
 
 def make_stt(cfg_voice: Dict[str, Any]) -> Any:

@@ -271,3 +271,100 @@ class TestVoiceFSM:
         rt.send(cmd)
         rt.tick()
         assert rt.fsm.state == "ESTOP"
+
+
+# ---------------------------------------------------------------- review fixes
+@pytest.mark.parametrize("text,kind", [
+    ("please stop", "stop"),                 # was e-stop ("pleas-e stop")
+    ("stop the stopwatch", "stop"),
+    ("I don't understand", None),            # was stand
+    ("what position are you in", None),      # was sit
+    ("sushi", None),                         # was hello
+    ("e-stop", "estop"),
+    ("hey robot, walk forward", "walk"),
+])
+def test_parse_needs_whole_words(text, kind):
+    cmd = parse(text)
+    assert (cmd.kind if cmd else None) == kind
+
+
+class TestLlmIntents:
+    """Schema -> Command conversion and the API call shape (Anthropic client mocked)."""
+
+    def test_to_command_keeps_only_used_args(self):
+        from robot.voice.llm_intents import to_command
+        c = to_command({"kind": "turn", "vx": 0, "direction": "L", "gesture": "none", "text": ""}, 0.04)
+        assert (c.kind, c.args) == ("turn", {"direction": "L"})
+        c = to_command({"kind": "walk", "vx": 3.0, "direction": "none", "gesture": "none", "text": ""}, 0.04)
+        assert c.args == {"vx": 0.04}                     # clamped
+        assert to_command({"kind": "walk", "vx": 0.0}, 0.04) is None
+        assert to_command({"kind": "reset"}, 0.04) is None   # never from the LLM
+        assert to_command({"kind": "gesture", "gesture": "none"}, 0.04) is None
+
+    def test_parse_with_mock_client(self, monkeypatch):
+        import json
+        from types import SimpleNamespace
+        from robot.voice.llm_intents import LlmIntentParser, SCHEMA
+        p = LlmIntentParser({"model": "claude-haiku-5-5"})
+        seen = {}
+
+        def create(**kw):
+            seen.update(kw)
+            body = {"kind": "gesture", "vx": 0, "direction": "none", "gesture": "bow", "text": ""}
+            return SimpleNamespace(stop_reason="end_turn",
+                                   content=[SimpleNamespace(type="text", text=json.dumps(body))])
+
+        p._client = SimpleNamespace(messages=SimpleNamespace(create=create))
+        cmd = p.parse("could you take a bow")
+        assert (cmd.kind, cmd.args, cmd.source) == ("gesture", {"name": "bow"}, "voice")
+        assert seen["model"] == "claude-haiku-5-5" and "temperature" not in seen
+        assert seen["output_config"]["format"]["schema"] is SCHEMA
+
+    def test_parse_errors_return_none(self):
+        from types import SimpleNamespace
+        from robot.voice.llm_intents import LlmIntentParser
+        p = LlmIntentParser({})
+
+        def boom(**kw):
+            raise ConnectionError("offline")
+
+        p._client = SimpleNamespace(messages=SimpleNamespace(create=boom))
+        assert p.parse("anything") is None
+
+
+def test_queued_tts_speaks_in_order():
+    import threading
+    from robot.voice.tts import QueuedTTS
+
+    class Recorder(QueuedTTS):
+        def __init__(self):
+            super().__init__()
+            self.spoken = []
+            self.done = threading.Event()
+
+        def _speak(self, text):
+            self.spoken.append(text)
+            if len(self.spoken) == 3:
+                self.done.set()
+
+    t = Recorder()
+    for w in ("one", "two", "three"):
+        t.say(w)
+    assert t.done.wait(2.0)
+    assert t.spoken == ["one", "two", "three"]
+    t.stop()
+
+
+def test_piper_model_path():
+    from robot.voice.tts import PIPER_DIR, piper_model_path
+    assert piper_model_path("/x/voice.onnx") == "/x/voice.onnx"
+    assert piper_model_path("en_US-lessac-medium").startswith(PIPER_DIR)
+
+
+def test_voice_config_overrides_do_not_touch_cfg(cfg):
+    import argparse
+    from robot.voice.client import voice_config
+    args = argparse.Namespace(text=False, vosk=True, whisper=False, quiet=True, llm=True)
+    v = voice_config(cfg, args)
+    assert v["stt"]["engine"] == "vosk" and v["tts"]["engine"] == "none" and v["llm"]["enabled"]
+    assert cfg.section("voice")["stt"]["engine"] == "text"

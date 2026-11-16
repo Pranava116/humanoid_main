@@ -53,6 +53,22 @@ sudo i2cdetect -y 1     # 68 (MPU9250)
 Keys in `robot.run`: **space** = e-stop (1st press holds the pose, 2nd press cuts torque), **r** = reset,
 **q** = quit.
 
+## Voice
+
+| What | Command |
+|---|---|
+| Type commands, robot in the same process (sim) | `python -m robot.voice.client --text --local --backend sim` |
+| Same, with viewer + dashboard | `mjpython -m robot.voice.client --text --local --backend sim --viewer --dashboard` |
+| Type commands to a running `robot.run` | `python -m robot.voice.client --text [--connect <pi-ip>]` |
+| Microphone (Vosk, offline) | `pip install vosk sounddevice`, then `python -m robot.voice.client --vosk` |
+| Free-form sentences via Claude when no rule matches | `export ANTHROPIC_API_KEY=...`, then add `--llm` |
+
+Phrases: walk forward / backward, turn left / right, side step left / right, stop, stand up, sit down,
+wave (left / right), bow, raise arms, squat, come here, follow me, emergency stop, reset, hello.
+`--quiet` turns speech off; replies otherwise use espeak-ng (`brew install espeak-ng` / `apt install espeak-ng`).
+"stop" finishes the current gait cycle before standing; say "emergency stop" to freeze immediately.
+The LLM fallback (`claude-haiku-5-5`) can never send `reset`.
+
 ## Behaviour, dashboard, teleop
 
 `robot.run` runs the behaviour state machine (`--controller hold` = M1 stand only):

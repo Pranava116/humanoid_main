@@ -9,6 +9,7 @@ stt:
     model: small               # "small" = vosk-model-small-en-us-0.15 (~40 MB); or an absolute path
     sample_rate: 16000
     grammar:                   # closed grammar for better accuracy (Vosk only, ignored by whisper)
+      - "[unk]"                # anything else -> ignored (without it every noise becomes a command)
       - "walk forward"
       - "walk backward"
       - "walk back"
@@ -51,11 +52,12 @@ tts:
     speed: 150                 # words per minute
     pitch: 50                  # 0–99
   piper:
-    model: en_US-lessac-medium
+    model: en_US-lessac-medium # name -> models/weights/piper/<name>.onnx, or a path to an .onnx file
 
 llm:
-  enabled: false               # use an LLM (Claude Haiku) for free-form intent parsing
-  model: claude-3-haiku-20240307
-  max_tokens: 100
-  temperature: 0.0
+  enabled: false               # use an LLM (Claude Haiku) when no rule matches; key from ANTHROPIC_API_KEY
+  model: claude-haiku-5-5
+  max_tokens: 1024             # includes thinking; the JSON answer itself is tiny
+  effort: low                  # low = fastest; it is a short classification
   timeout_s: 5.0
+  max_speed: 0.04              # m/s: clamp walk speeds the LLM returns

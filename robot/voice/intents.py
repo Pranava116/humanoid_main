@@ -21,12 +21,12 @@ log = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------- aliases
 # Each entry is (pattern_regex, command_kind, args_dict).
-# Patterns are tried in order; first match wins.
-# Group captures can be used in args via {1}, {2}, etc.
+# Patterns are tried in order; first match wins. Every pattern is wrapped in word
+# boundaries, so "please stop" is a stop (not "e stop") and "understand" is not "stand".
 
 _RULES: List[Tuple[str, str, Dict[str, Any]]] = [
     # emergency
-    (r"(?:emergency\s*stop|e\s*stop)", "estop", {}),
+    (r"(?:emergency\s*stop|e[\s-]*stop)", "estop", {}),
     (r"reset", "reset", {}),
 
     # walking
@@ -58,13 +58,13 @@ _RULES: List[Tuple[str, str, Dict[str, Any]]] = [
     (r"follow\s*(?:me)?", "follow", {}),
 
     # conversation (mapped to 'say' so the robot speaks back)
-    (r"(?:hello|hi|hey)\b", "say", {"text": "Hello! I am ready for your commands."}),
+    (r"(?:hello|hi|hey)", "say", {"text": "Hello! I am ready for your commands."}),
     (r"how\s+are\s+you", "say", {"text": "I am doing great, thank you for asking!"}),
     (r"what\s+is\s+your\s+name", "say", {"text": "I am a humanoid robot. Nice to meet you!"}),
 ]
 
 # Compile once
-_COMPILED = [(re.compile(pat, re.IGNORECASE), kind, args) for pat, kind, args in _RULES]
+_COMPILED = [(re.compile(rf"\b(?:{pat})\b", re.IGNORECASE), kind, args) for pat, kind, args in _RULES]
 
 
 def parse(text: str, source: str = "voice") -> Optional[Command]:
