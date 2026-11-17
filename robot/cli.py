@@ -19,6 +19,8 @@ def add_common_args(p: argparse.ArgumentParser, default_backend: str = "sim") ->
                    help="sim: open the MuJoCo viewer (on macOS run with `mjpython` instead of `python`)")
     p.add_argument("--fast", action="store_true", help="sim/dry: run faster than realtime")
     p.add_argument("--yes", "-y", action="store_true", help="real: skip the 'support the robot' prompt")
+    p.add_argument("--no-imu", action="store_true",
+                   help="real: run without the MPU9250 (no fall detection; arm tests only)")
     p.add_argument("--log-level", default="INFO", help="DEBUG, INFO, WARNING")
     return p
 
@@ -35,6 +37,10 @@ def backend_from_args(args: argparse.Namespace, cfg: Optional[Config] = None,
     extra: Dict[str, Any] = dict(opts)
     if args.backend == "sim":
         extra.setdefault("viewer", bool(getattr(args, "viewer", False)))
+    if args.backend == "real" and getattr(args, "no_imu", False):
+        extra["imu"] = False
+        logging.getLogger(__name__).warning(
+            "running WITHOUT the IMU: fall detection is off, the robot always reads as upright")
     if args.backend == "real" and not getattr(args, "yes", False):
         print("REAL ROBOT: every servo will go to the stand pose (offset + 0) and stay stiff.")
         print("Support the robot, keep it still (gyro calibration), then press ENTER. Ctrl-C aborts.")

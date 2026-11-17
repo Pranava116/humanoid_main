@@ -165,3 +165,17 @@ def test_sim_camera_and_person(sim):
     assert frame.shape == (240, 320, 3)
     sim.set_person(1.0, 0.5)
     assert list(sim.person_position()[:2]) == [1.0, 0.5]
+
+
+def test_no_imu_flag_passes_imu_false(monkeypatch):
+    """--no-imu on the real backend opens it without the MPU9250."""
+    import argparse
+
+    from robot import cli
+
+    seen = {}
+    monkeypatch.setattr(cli, "make_backend", lambda name, cfg, **kw: seen.update(name=name, **kw) or "ok")
+    p = cli.add_common_args(argparse.ArgumentParser())
+    args = p.parse_args(["--backend", "real", "--no-imu", "--yes"])
+    cli.backend_from_args(args)
+    assert seen["name"] == "real" and seen["imu"] is False
