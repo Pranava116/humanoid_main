@@ -68,24 +68,48 @@ def kit_factory(present):
     return make, kits
 
 
-def test_real_backend_without_second_board(cfg):
+@pytest.fixture
+def cfg2(cfg):
+    """The repo config with R_elbow moved to an optional second board (0x41, channel 0)."""
+    import copy
+    import dataclasses
+
+    from robot.config import JointTable
+
+    sections = copy.deepcopy(cfg.sections)
+    sections["robot"]["boards"] = [{"address": 0x40, "required": True}, {"address": 0x41, "required": False}]
+    joints = [dataclasses.replace(j, board=0x41, channel=0, offset_deg=0.0) if j.name == "R_elbow" else j
+              for j in cfg.joints]
+    return dataclasses.replace(cfg, sections=sections, joints=JointTable(joints))
+
+
+def test_real_backend_without_second_board(cfg2):
     make, kits = kit_factory({0x40})
-    b = RealBackend(cfg, camera=False, imu=False, kit_factory=make)
-    assert b.info().missing_joints == ["R_arm_roll"]
-    b.set_joint_targets({"R_knee": 0.0, "R_arm_roll": 0.5})
-    ch = cfg.joints["R_knee"].channel
-    assert kits[0x40].servo[ch].angle == pytest.approx(cfg.joints["R_knee"].offset_deg + 90)
+    b = RealBackend(cfg2, camera=False, imu=False, kit_factory=make)
+    assert b.info().missing_joints == ["R_elbow"]
+    b.set_joint_targets({"R_knee": 0.0, "R_elbow": 0.5})
+    ch = cfg2.joints["R_knee"].channel
+    assert kits[0x40].servo[ch].angle == pytest.approx(cfg2.joints["R_knee"].offset_deg + 90)
     assert kits[0x40].servo[ch].range == (500, 2500)
+    assert kits[0x40].servo[0].angle is None          # 0x40 ch 0 is R_shoulder_pitch, not R_elbow
     b.release()
     assert kits[0x40].servo[ch].angle is None
 
 
-def test_real_backend_with_second_board(cfg):
+def test_real_backend_with_second_board(cfg2):
     make, kits = kit_factory({0x40, 0x41})
-    b = RealBackend(cfg, camera=False, imu=False, kit_factory=make)
-    b.set_joint_targets({"R_arm_roll": math.radians(10)})
+    b = RealBackend(cfg2, camera=False, imu=False, kit_factory=make)
+    b.set_joint_targets({"R_elbow": math.radians(10)})
     assert kits[0x41].servo[0].angle == pytest.approx(100.0)
     assert b.info().missing_joints == []
+
+
+def test_real_backend_single_board_drives_all_16(cfg):
+    make, kits = kit_factory({0x40})
+    b = RealBackend(cfg, camera=False, imu=False, kit_factory=make)
+    assert b.info().missing_joints == []
+    b.set_joint_targets({n: 0.0 for n in cfg.joints.names})
+    assert all(kits[0x40].servo[ch].angle is not None for ch in range(16))
 
 
 def test_real_backend_requires_first_board(cfg):

@@ -69,6 +69,24 @@ wave (left / right), bow, raise arms, squat, come here, follow me, emergency sto
 "stop" finishes the current gait cycle before standing; say "emergency stop" to freeze immediately.
 The LLM fallback (`claude-haiku-5-5`) can never send `reset`.
 
+## RL walking
+
+A PPO policy trained in MuJoCo walks at a commanded velocity (forward / back / sideways; turning is
+slow, the robot has no hip yaw). It sees only what the real robot has (IMU + its own last commands),
+and its targets go through `Safety` exactly like every other motion. Settings: `config/stack/rl.yaml`.
+
+| What | Command |
+|---|---|
+| Training env (once) | `uv venv ~/.venvs/humanoid-train --python 3.12 && uv pip install --python ~/.venvs/humanoid-train -r robot/rl/requirements-train.txt` |
+| Train (14 CPU sims, ~10k steps/s on an M5 Pro) | `~/.venvs/humanoid-train/bin/python -m robot.rl.train_ppo [--steps 2e7] [--resume]` |
+| Watch it walk | `mjpython -m robot.rl.play --viewer --cmd 0.1,0,0` (vx, vy, yaw rate) |
+| Score it on 10 commands | `python -m robot.rl.play --eval [--randomize]` (mean error: 0 perfect, < 0.5 good) |
+| Walk to points (sim position) | `mjpython -m robot.rl.goto --target 0.5,0,0.5,0.5 --viewer` (`--target=-0.4,0` for a leading minus) |
+| Use it in robot.run / voice / dashboard | `behavior.walking.controller: rl` in `config/stack/behavior.yaml` |
+
+The policy file is `models/policies/walk.onnx` (needs `onnxruntime`, in requirements-pi.txt).
+Training writes checkpoints to `models/weights/rl/` (gitignored).
+
 ## Behaviour, dashboard, teleop
 
 `robot.run` runs the behaviour state machine (`--controller hold` = M1 stand only):

@@ -114,7 +114,7 @@ def test_walk_duration_then_idle(rt):
     rt.send(walk(0.02, duration=1.0))
     rt.tick()
     assert rt.fsm.state == WALKING
-    assert rt.fsm.walker.mode == "forward"
+    assert rt.fsm.walker.mode.endswith("forward")          # "forward" (keyframe) or "rl:forward"
     to_idle(rt, 30)
 
 
@@ -122,7 +122,7 @@ def test_stop_finishes_walk(rt):
     to_idle(rt)
     rt.send(Command("turn", {"direction": "R"}))
     rt.run_for(1.0)
-    assert rt.fsm.state == WALKING and rt.fsm.walker.mode == "turn_R"
+    assert rt.fsm.state == WALKING and rt.fsm.walker.mode.endswith("turn_R")
     rt.send(Command("stop"))
     to_idle(rt, 30)
 
@@ -201,3 +201,16 @@ def test_sim_push_triggers_fall(cfg, sim):
     sim.push((45.0, 0.0, 0.0), 0.3)
     rt.run_for(2.0)
     assert rt.fsm.state == FALLEN
+
+
+def test_walk_velocity_defaults(cfg):
+    from robot.behavior.commands import Command
+    from robot.behavior.fsm import BehaviorFSM
+    from robot.motion.library import MotionLibrary
+
+    fsm = BehaviorFSM(cfg, MotionLibrary(cfg))
+    default = float(cfg.get("behavior.walking.default_speed"))
+    assert fsm._velocity(Command("walk", {})) == (default, 0.0, 0.0)
+    assert fsm._velocity(Command("walk", {"vy": 0.04})) == (0.0, 0.04, 0.0)      # no forward speed added
+    assert fsm._velocity(Command("walk", {"yaw": 0.2})) == (0.0, 0.0, 0.2)
+    assert fsm._velocity(Command("walk", {"vx": 0.1, "vy": 0.02})) == (0.1, 0.02, 0.0)

@@ -60,4 +60,4 @@ llm:
   max_tokens: 1024             # includes thinking; the JSON answer itself is tiny
   effort: low                  # low = fastest; it is a short classification
   timeout_s: 5.0
-  max_speed: 0.04              # m/s: clamp walk speeds the LLM returns
+  max_speed: 0.12              # m/s: clamp walk speeds the LLM returns (RL walker range)

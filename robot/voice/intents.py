@@ -30,8 +30,8 @@ _RULES: List[Tuple[str, str, Dict[str, Any]]] = [
     (r"reset", "reset", {}),
 
     # walking
-    (r"(?:walk|go|move|step)\s+(?:forward|ahead|straight)", "walk", {"vx": 0.02}),
-    (r"(?:walk|go|move|step)\s+(?:backward|back|backwards)", "walk", {"vx": -0.02}),
+    (r"(?:walk|go|move|step)\s+(?:forward|ahead|straight)", "walk", {"vx": 0.06}),
+    (r"(?:walk|go|move|step)\s+(?:backward|back|backwards)", "walk", {"vx": -0.04}),
     (r"turn\s+(?:left|l\b)", "turn", {"direction": "L"}),
     (r"turn\s+(?:right|r\b)", "turn", {"direction": "R"}),
     (r"side\s*step\s+(?:left|l\b)", "side_step", {"direction": "L"}),

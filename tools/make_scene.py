@@ -25,7 +25,8 @@ def main(argv=None) -> int:
     p.add_argument("--urdf", help="input URDF (default robot.yaml sim.urdf)")
     p.add_argument("--out", help="output MJCF (default robot.yaml sim.scene)")
     p.add_argument("--no-person", action="store_true", help="leave out the mocap person")
-    p.add_argument("--self-collision", action="store_true", help="let robot links collide with each other")
+    p.add_argument("--no-self-collision", action="store_true",
+                   help="robot links pass through each other (default: links not directly joined collide)")
     p.add_argument("--check", action="store_true", help="compile with MuJoCo and print a summary")
     args = p.parse_args(argv)
 
@@ -33,7 +34,7 @@ def main(argv=None) -> int:
     urdf = args.urdf or cfg.path(cfg.require("robot.sim.urdf"))
     out = args.out or cfg.path(cfg.require("robot.sim.scene"))
     opts = SceneOptions(actuator=cfg.actuator, physics_dt=float(cfg.get("robot.sim.physics_dt", 0.002)),
-                        person=not args.no_person, self_collision=args.self_collision)
+                        person=not args.no_person, self_collision=not args.no_self_collision)
     write_scene(urdf, out, opts)
     print(f"wrote {out}")
     if args.check:

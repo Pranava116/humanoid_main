@@ -1,0 +1,39 @@
+# config/stack/cad.yaml — turning the CAD export (FreeCAD / RobotCAD) into the stack's URDF.
+#
+#   python tools/import_cad_urdf.py          # models/Assembly001 (3).urdf -> models/humanoid_v3.urdf
+#
+# The CAD file keeps its own frames and names. The importer writes a clean URDF in the stack's
+# convention: torso frame x forward, y left, z up; every link frame axis-aligned with the torso;
+# fixed CAD parts merged into the moving link they are bolted to; joints renamed below; joint
+# limits from robot.yaml; box collision shapes from the mesh bounding boxes; mesh visuals (.stl).
+
+source: "models/Assembly001 (3).urdf"
+output: models/humanoid_v3.urdf
+meshdir: models/meshes            # .stl files (convert the CAD .dae once with trimesh)
+
+# Which CAD axis points forward / left / up on the robot (the chest cap is the front).
+axes: {forward: "+z", left: "+x", up: "+y"}
+
+root_link: torso                   # name of the CAD root link in the output
+
+# stack joint name -> CAD joint name. Axes follow humanoid_latest.urdf so motions keep their meaning:
+# pitch joints rotate about +y, leg roll joints about +x, arm roll / elbow about -x (R) and +x (L).
+joints:
+  R_shoulder_pitch: {cad: l_Hip_Body002__to__l_Body019,        axis: [0, 1, 0],  link: R_shoulder}
+  R_arm_roll:       {cad: l_Body019__to__l_Thigh007,           axis: [-1, 0, 0], link: R_arm}
+  R_elbow:          {cad: l_Thigh007__to__l_hand_part004,      axis: [-1, 0, 0], link: R_hand}
+  L_shoulder_pitch: {cad: l_Hip_Body002__to__l_Body020,        axis: [0, 1, 0],  link: L_shoulder}
+  L_arm_roll:       {cad: l_Body020__to__l_Thigh008,           axis: [1, 0, 0],  link: L_arm}
+  L_elbow:          {cad: l_Thigh008__to__l_hand_part003,      axis: [1, 0, 0],  link: L_hand}
+  R_hip_roll:       {cad: l_Hip_Body002__to__l_Hip_Joint010,   axis: [1, 0, 0],  link: R_hip}
+  R_hip_pitch:      {cad: l_Hip_Joint011__to__l_Knee003,       axis: [0, 1, 0],  link: R_thigh}
+  R_knee:           {cad: l_Knee003__to__l_Thigh005,           axis: [0, 1, 0],  link: R_shin}
+  R_ankle_pitch:    {cad: l_Thigh005__to__l_Hip_Joint013,      axis: [0, 1, 0],  link: R_ankle}
+  R_foot_roll:      {cad: l_Hip_Joint015__to__l_Foot_joint005, axis: [1, 0, 0],  link: R_foot}
+  L_hip_roll:       {cad: l_Hip_Body002__to__l_Hip_Joint009,   axis: [1, 0, 0],  link: L_hip}
+  L_hip_pitch:      {cad: l_Hip_Joint012__to__l_Knee004,       axis: [0, 1, 0],  link: L_thigh}
+  L_knee:           {cad: l_Knee004__to__l_Thigh006,           axis: [0, 1, 0],  link: L_shin}
+  L_ankle_pitch:    {cad: l_Thigh006__to__l_Hip_Joint014,      axis: [0, 1, 0],  link: L_ankle}
+  L_foot_roll:      {cad: l_Hip_Joint016__to__l_Foot_joint004, axis: [1, 0, 0],  link: L_foot}
+
+effort: 1.1                        # N*m written into <limit effort> (MG996R stall torque, approx.)

@@ -7,20 +7,18 @@ from robot.config import ConfigError, JointTable, Joint, load_config
 
 def test_joint_table_matches_servos_yaml(cfg):
     names = cfg.joints.names
-    assert len(names) == 14
-    assert cfg.joints["L_shoulder_pitch"].channel == 1
-    assert cfg.joints["R_shoulder_pitch"].channel == 3
-    assert cfg.joints["L_arm_roll"].channel == 4
-    assert cfg.joints["R_arm_roll"].board == 0x41
-    for ch in (0, 2, 5):   # head / waist are not driven
-        assert all(not (j.board == 0x40 and j.channel == ch) for j in cfg.joints)
+    assert len(names) == 16
+    assert all(j.board == 0x40 for j in cfg.joints)
+    arms = ["R_shoulder_pitch", "R_arm_roll", "R_elbow", "L_shoulder_pitch", "L_arm_roll", "L_elbow"]
+    assert [cfg.joints[n].channel for n in arms] == [0, 1, 2, 3, 4, 5]
+    assert sorted(j.channel for j in cfg.joints) == list(range(16))
 
 
 def test_offsets_come_from_offsets_json(cfg):
     assert cfg.joints["R_hip_roll"].offset_deg == -3.0
     assert cfg.joints["L_knee"].offset_deg == -39.0
-    assert cfg.joints["L_arm_roll"].offset_deg == 0.0    # arms uncalibrated
-    assert cfg.joints["R_arm_roll"].offset_deg == 0.0    # second board: from robot.yaml
+    assert cfg.joints["L_arm_roll"].offset_deg == 0.0    # arms uncalibrated (not in offsets.json)
+    assert cfg.joints["R_elbow"].offset_deg == 0.0
 
 
 def test_limits_in_radians(cfg):

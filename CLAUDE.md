@@ -26,11 +26,13 @@
 - **Servo mapping** (only in `robot/hal/mapping.py`): `servo_deg = sign*deg(q) + offset + 90`, clamped so
   `offset + rel` stays within ±90 and the result within 0..180. Sim clamps to the same reachable range.
 - **Joint table**: `config/stack/robot.yaml` (channel, board, sign, limits, default). Offsets from `offsets.json`
-  (board 0x40 channels); joints on 0x41 use `offset_deg` in robot.yaml.
-- **Channel map** (from `config/servos.yaml`): L_shoulder_pitch 1, R_shoulder_pitch 3, L_arm_roll 4,
-  R legs 6–10 (hip_roll, hip_pitch, knee, ankle_pitch, foot_roll), L legs 11–15, R_arm_roll on 0x41 ch 0.
-  Channels 0/2/5 (old head/waist) are not driven. `scripts/motions/gait_studio.py` labels arms differently; the
-  stack follows servos.yaml.
+  (board 0x40 channels); joints on other boards use `offset_deg` in robot.yaml.
+- **Channel map** (robot v3, one PCA9685 at 0x40, 16 servos): R arm 0–2 (shoulder_pitch, arm_roll, elbow),
+  L arm 3–5, R leg 6–10 (hip_roll, hip_pitch, knee, ankle_pitch, foot_roll), L leg 11–15.
+- **Model**: `models/Assembly001 (3).urdf` is the CAD export (FreeCAD/RobotCAD, y-up, CAD names). Never edit it;
+  `tools/import_cad_urdf.py` (settings `config/stack/cad.yaml`) writes `models/humanoid_v3.urdf` in the stack
+  convention with the limits from robot.yaml. Rerun it after a CAD re-export or a limit change.
+  `models/humanoid_latest.urdf` is the old model, kept but unused.
 - **IMU frame**: body x forward, y left, z up. `ImuReading.quat` is (w, x, y, z) world-from-body.
 - **Hardware**: PCA9685 0x40 (+ optional 0x41) on software I2C bus 3 via `ExtendedI2C(3)`; MPU9250 0x68 on bus 1
   (configurable). 50 Hz, 500–2500 µs. No encoders: commands are open loop.
@@ -42,7 +44,8 @@ config/stack/*.yaml        -> robot/config.py (Config, JointTable, ActuatorParam
 robot/hal/                 Backend: set_joint_targets, get_imu, get_camera_frame, step, release, estop, close
   real.py  sim.py  dry.py  make_backend(name, cfg)
   actuator_model.py        MG996R: latency -> lag -> speed limit -> backlash -> deadband (numpy/jax pure fns)
-robot/sim/scene.py         URDF -> MJCF (tools/make_scene.py writes models/scene.xml)
+robot/sim/scene.py         URDF -> MJCF (tools/make_scene.py writes models/scene.xml), mesh visuals + box collisions
+robot/sim/cad_import.py    CAD URDF -> stack URDF (tools/import_cad_urdf.py)
 robot/core/
   loop.py                  ControlLoop (fixed rate, monotonic, overruns, resync, virtual time)
   safety.py                Safety.filter: clamp, speed limit, soft start, e-stop HOLD -> RELEASE
@@ -61,6 +64,12 @@ robot/behavior/
   fsm.py                   BehaviorFSM (the Controller): states, ALLOWED commands per state
   fall.py walking.py       FallDetector; Walker interface + KeyframeWalker (gait_mode from vx, vy, yaw)
   runtime.py               RobotRuntime = backend + RobotApp + FSM; send(cmd) routes estop/reset to the app
+robot/rl/                  RL walking (M6). Python 3.9 except train_ppo.py (training venv, see requirements-train.txt)
+  obs.py                   PolicyIO: observation (IMU + last safe command + command + clock) and action -> targets
+  env.py                   WalkEnv on SimBackend + Safety (same path as the robot), rewards, domain randomisation
+  train_ppo.py             PPO (stable-baselines3), parallel sims, exports models/policies/walk.onnx
+  policy.py runner.py      OnnxPolicy; RLWalker (Walker interface; behavior.walking.controller: rl)
+  play.py goto.py          watch / evaluate the policy; walk to x,y waypoints (sim pose)
 robot/interface/
   bus.py                   Link (ZmqLink | LocalLink) for clients, LinkServer in the robot process
   dashboard.py static/     FastAPI + websocket, one index.html

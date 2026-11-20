@@ -18,11 +18,11 @@ fall:
     L_ankle_pitch: -30.0
 
 walking:
-  controller: keyframe       # keyframe | rl
+  controller: rl             # keyframe | rl (RL policy: models/policies/walk.onnx)
   min_step_scale: 0.4        # slowest gait = this fraction of the tuned step length
   turn_threshold: 0.15       # rad/s: |yaw| above this (and dominant) -> shuffle turn
   side_threshold: 0.01       # m/s:  |vy| above this (and dominant) -> side step
-  default_speed: 0.02        # m/s used by "walk forward" without a speed
+  default_speed: 0.06        # m/s used by "walk forward" without a speed (RL walks 0.05-0.12 well)
 
 gestures:                    # command -> library motion
   wave: wave_R

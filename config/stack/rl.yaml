@@ -1,0 +1,93 @@
+# config/stack/rl.yaml — RL walking: observations, actions, rewards, randomisation, training.
+#
+# The policy sees only what the real robot has (IMU + its own last commands); it outputs
+# joint targets around the "ready" pose, which then go through Safety exactly like on the robot.
+#   train:  ~/.venvs/humanoid-train/bin/python -m robot.rl.train_ppo
+#   watch:  .venv/bin/mjpython -m robot.rl.play --viewer
+#   goto:   .venv/bin/mjpython -m robot.rl.goto --target 1.0,0.5 --viewer
+
+policy_file: models/policies/walk.onnx     # exported by train_ppo (obs normalisation inside)
+
+obs:
+  history: 3                 # frames of (gravity, gyro, last commanded joints) stacked
+  gait_period_s: 0.6         # clock fed to the policy (sin, cos)
+  gyro_scale: 0.25
+  cmd_scale: [5.0, 5.0, 1.0] # vx, vy (m/s), yaw rate (rad/s) -> policy input
+  noise:                     # added during training only
+    gravity: 0.03
+    gyro: 0.15               # rad/s
+    joints: 0.0
+
+action:
+  scale_legs: 0.5            # rad per unit action, around the ready pose
+  scale_arms: 0.25
+  # Targets go through robot.core.safety.Safety (joint limits + speed limit) like on the robot.
+
+commands:                    # sampled per episode chunk
+  resample_s: 4.0
+  vx: [-0.06, 0.12]          # m/s
+  vy: [-0.05, 0.05]
+  yaw: [-0.1, 0.1]           # rad/s. No hip yaw joint: the scripted shuffle turns 0.014 rad/s, RL ~0.02
+  zero_prob: 0.15            # fraction of chunks that ask to stand still
+  turn_prob: 0.0             # fraction of chunks that ask to turn in place (0.3 did not teach turning)
+  small_cutoff: [0.02, 0.02, 0.1]   # commands below this are set to 0
+
+episode_s: 20.0
+terminate:
+  tilt_deg: 50.0
+  min_height_ratio: 0.6      # torso height below this fraction of the ready height
+  body_contacts: [torso, R_hip, L_hip, R_thigh, L_thigh, R_shin, L_shin, R_hand, L_hand]
+
+rewards:                     # per control tick; summed and multiplied by dt
+  track_lin_vel: 4.0         # exp(-|cmd_xy - v_xy|^2 / sigma)
+  track_ang_vel: 3.0
+  tracking_sigma: 0.0025     # (m/s)^2 -> 5 cm/s error gives exp(-1)
+  tracking_sigma_yaw: 0.05
+  lin_vel_z: -2.0
+  ang_vel_xy: -0.05
+  orientation: -5.0          # gravity off the body z axis
+  height: -10.0              # (z - ready height)^2
+  torque: -0.02              # sum (tau / tau_max)^2
+  torque_saturation: -0.3    # sum relu(|tau| / tau_max - 0.85)
+  action_rate: -0.02
+  feet_air_time: 4.0         # reward steps of about air_time_target when moving
+  air_time_target: 0.2       # s
+  feet_slip: -0.5
+  feet_clearance: 0.0        # swing foot up to clearance_target (replaced by foot_height_track)
+  clearance_target: 0.025    # m: swing height for feet_clearance and foot_height_track
+  foot_height_track: 2.0     # exp(-sum (foot_h - clock target)^2 / sigma): L/R feet rise in their half period
+  foot_height_sigma: 0.0001  # m^2 -> 1 cm error gives exp(-1)
+  gait_phase: 2.0            # +1 per foot following the clock (L / R alternate), -1 against it, when moving
+  feet_air_long: -2.0        # per second a foot stays up beyond air_long_s (no balancing on one leg)
+  air_long_s: 0.4
+  stand_still: -1.0          # joint deviation from ready when the command is zero
+  alive: 0.2
+  termination: -20.0
+
+randomize:
+  friction: [0.5, 1.3]
+  mass_scale: [0.85, 1.15]   # every body
+  com_offset: 0.01           # m, torso
+  kp_scale: [0.8, 1.2]
+  torque_scale: [0.95, 1.1]  # below ~0.95 one-leg stance is impossible at 3 kg
+  latency: true              # uniform in actuator.yaml latency_ms
+  backlash_deg: [0.5, 2.5]
+  push_every_s: [3.0, 6.0]
+  push_velocity: 0.15        # m/s random xy kick to the torso
+
+train:
+  n_envs: 14
+  total_steps: 60000000
+  n_steps: 512               # per env per update
+  batch_size: 7168
+  n_epochs: 5
+  learning_rate: 0.00005
+  gamma: 0.99
+  gae_lambda: 0.95
+  clip_range: 0.2
+  ent_coef: 0.0                # >0 made the action noise grow until the gait got sloppy
+  net: [256, 256, 128]
+  init_log_std: -1.0
+  resume_max_log_std: -1.05  # on --resume: action std back to <= 0.35
+  mirror_prob: 0.5           # episodes seen left/right mirrored (forces a symmetric, alternating gait)
+  out_dir: models/weights/rl   # checkpoints (gitignored); the ONNX goes to policy_file

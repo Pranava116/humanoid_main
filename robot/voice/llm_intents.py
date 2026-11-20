@@ -30,7 +30,7 @@ SYSTEM_PROMPT = """\
 You turn what a person says to a small humanoid robot into one robot command.
 
 kind: one of {kinds}
-- walk: walk forward (vx > 0) or backward (vx < 0); vx in m/s, normal speed 0.02
+- walk: walk forward (vx > 0) or backward (vx < 0); vx in m/s, normal speed 0.06, slow 0.03, fast 0.1
 - turn / side_step: direction "L" or "R"
 - gesture: gesture is one of {gestures}
 - say: a short friendly spoken reply in text (use this when the sentence is not a robot command)

@@ -71,6 +71,9 @@ class BehaviorFSM(Controller):
         self.lib = library
         self.queue = queue or CommandQueue()
         self.player = MotionPlayer(cfg.joints, library.interp, float(cfg.get("motion.blend_s", 0.8)))
+        if walker is None:
+            from robot.rl.runner import make_walker     # behavior.walking.controller: rl
+            walker = make_walker(cfg, library, self.player)
         self.walker = walker or KeyframeWalker(cfg, library, self.player)
         self.follow = follow
         self.say = say or (lambda text: log.info("say: %s", text))
@@ -186,7 +189,9 @@ class BehaviorFSM(Controller):
             return 0.0, 0.0, 0.5 if str(a.get("direction", "L")).upper().startswith("L") else -0.5
         if cmd.kind == "side_step":
             return 0.0, (default if str(a.get("direction", "L")).upper().startswith("L") else -default), 0.0
-        return float(a.get("vx", default)), float(a.get("vy", 0.0)), float(a.get("yaw", 0.0))
+        # the default forward speed applies only to a bare "walk"; "walk vy=..." or "walk yaw=..." means exactly that
+        vx_default = default if "vy" not in a and "yaw" not in a else 0.0
+        return float(a.get("vx", vx_default)), float(a.get("vy", 0.0)), float(a.get("yaw", 0.0))
 
     # ---------------------------------------------------------------- Controller interface
     def on_estop(self, level: EstopLevel) -> None:

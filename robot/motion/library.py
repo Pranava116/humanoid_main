@@ -8,6 +8,7 @@ tuned in the studio), otherwise generates the motion from config/stack/motion.ya
 from __future__ import annotations
 
 import argparse
+import math
 import os
 import sys
 from typing import Callable, Dict, List, Optional
@@ -38,6 +39,9 @@ class MotionLibrary:
         self.dir = cfg.path(m.get("motions_dir", "robot/motion/motions"))
         self.geo = LegGeometry.from_urdf(cfg.path(cfg.require("robot.sim.urdf")))
         self.stance = walkgen.params_from(StanceParams, m.get("stance"))
+        self.min_ratio = self._min_height_ratio()
+        if self.stance.height_ratio < self.min_ratio:
+            self.stance = StanceParams(self.min_ratio, self.stance.torso_pitch_deg)
         self.walk_p = walkgen.params_from(walkgen.WalkParams, m.get("walk"))
         self.side_p = walkgen.params_from(walkgen.SideStepParams, m.get("side_step"))
         self.turn_p = walkgen.params_from(walkgen.TurnParams, m.get("turn"))
@@ -115,7 +119,18 @@ class MotionLibrary:
     def _ready_angles(self) -> Dict[str, float]:
         return walkgen.ready_motion(self.geo, self.stance).frames[0].angles
 
+    def _min_height_ratio(self, margin_deg: float = 3.0) -> float:
+        """Lowest stance (fraction of thigh + shin) the knee limits allow, with a margin."""
+        knees = [self.joints[n] for n in ("R_knee", "L_knee") if n in self.joints.by_name]
+        if not knees:
+            return 0.0
+        k = max(0.0, min(j.max_rad for j in knees) - math.radians(margin_deg))
+        a, b = self.geo.thigh, self.geo.shin
+        return math.sqrt(a * a + b * b + 2 * a * b * math.cos(k)) / (a + b)
+
     def _crouch_angles(self, height_ratio: float, feet_x: float = 0.0, torso_pitch_deg: float = 0.0) -> Dict[str, float]:
+        """Leg angles for a crouch; never deeper than the knee limits allow."""
+        height_ratio = max(height_ratio, self.min_ratio)
         b = GaitBuilder(self.geo, StanceParams(height_ratio, torso_pitch_deg), 0.0)
         b.fx["R"] = b.fx["L"] = feet_x
         return b.pose_deg()
@@ -149,8 +164,10 @@ class MotionLibrary:
 
     def _bow(self) -> Motion:
         ready = self._ready_angles()
-        low = _arms(self._crouch_angles(0.92, feet_x=0.015, torso_pitch_deg=30.0),
-                    L_shoulder_pitch=-10.0, R_shoulder_pitch=-10.0)
+        lean = float(self.gest.get("bow_lean_deg", 13.0))
+        arms = float(self.gest.get("bow_arms_deg", 20.0))    # arms back to balance the lean
+        low = _arms(self._crouch_angles(self.stance.height_ratio, torso_pitch_deg=lean),
+                    L_shoulder_pitch=arms, R_shoulder_pitch=arms)
         return Motion("bow", [Frame("ready", 0.8, 0.1, ready), Frame("bow", 1.2, 0.8, low),
                               Frame("up", 1.2, 0.0, ready)])
 

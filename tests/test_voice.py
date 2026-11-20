@@ -16,14 +16,14 @@ class TestIntents:
     """Rule-based intent parser."""
 
     @pytest.mark.parametrize("text,kind,args", [
-        ("walk forward", "walk", {"vx": 0.02}),
-        ("go forward", "walk", {"vx": 0.02}),
-        ("move forward", "walk", {"vx": 0.02}),
-        ("step forward", "walk", {"vx": 0.02}),
-        ("walk ahead", "walk", {"vx": 0.02}),
-        ("walk backward", "walk", {"vx": -0.02}),
-        ("go back", "walk", {"vx": -0.02}),
-        ("walk backwards", "walk", {"vx": -0.02}),
+        ("walk forward", "walk", {"vx": 0.06}),
+        ("go forward", "walk", {"vx": 0.06}),
+        ("move forward", "walk", {"vx": 0.06}),
+        ("step forward", "walk", {"vx": 0.06}),
+        ("walk ahead", "walk", {"vx": 0.06}),
+        ("walk backward", "walk", {"vx": -0.04}),
+        ("go back", "walk", {"vx": -0.04}),
+        ("walk backwards", "walk", {"vx": -0.04}),
         ("turn left", "turn", {"direction": "L"}),
         ("turn right", "turn", {"direction": "R"}),
         ("side step left", "side_step", {"direction": "L"}),

@@ -5,12 +5,14 @@ the torso, position actuators (MG996R gains from actuator.yaml) on every
 revolute joint, an IMU site with framequat / gyro / accelerometer sensors, a
 camera on the head and an optional mocap "person" for the follow behaviour.
 
-Only the URDF features this robot uses are supported: box geometry, fixed and
-revolute joints, diagonal inertia.
+Only the URDF features this robot uses are supported: box collision geometry, optional
+mesh visuals (.stl/.obj, shown but not colliding), fixed and revolute joints, inertia in
+principal axes (inertial origin rpy). Without a ``head`` link the camera goes on the root.
 """
 
 from __future__ import annotations
 
+import os
 import xml.etree.ElementTree as ET
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Sequence, Tuple
@@ -29,12 +31,22 @@ class UrdfGeom:
 
 
 @dataclass
+class UrdfMesh:
+    file: str          # path relative to the URDF file
+    pos: Vec
+    rpy: Vec
+    rgba: str = "0.6 0.62 0.66 1"
+
+
+@dataclass
 class UrdfLink:
     name: str
     mass: float
     com: Vec
     inertia: Vec
     geoms: List[UrdfGeom] = field(default_factory=list)
+    meshes: List[UrdfMesh] = field(default_factory=list)
+    inertia_rpy: Vec = (0.0, 0.0, 0.0)
 
 
 @dataclass
@@ -91,20 +103,31 @@ def parse_urdf(path: str) -> Urdf:
     for link in root.findall("link"):
         inertial = link.find("inertial")
         mass, com, inertia = 0.0, (0.0, 0.0, 0.0), (0.0, 0.0, 0.0)
+        inertia_rpy: Vec = (0.0, 0.0, 0.0)
         if inertial is not None:
             mass = float(inertial.find("mass").get("value"))
             org = inertial.find("origin")
             com = _vec(org.get("xyz") if org is not None else None)
+            inertia_rpy = _vec(org.get("rpy") if org is not None else None)
             i = inertial.find("inertia")
             inertia = (float(i.get("ixx")), float(i.get("iyy")), float(i.get("izz")))
         rgba = []
+        meshes = []
         for vis in link.findall("visual"):
             mat = vis.find("material")
+            col = "0.7 0.7 0.75 1"
             if mat is not None:
                 c = mat.find("color")
                 if c is not None:
                     colors[mat.get("name")] = c.get("rgba")
-                rgba.append(colors.get(mat.get("name"), "0.7 0.7 0.75 1"))
+                col = colors.get(mat.get("name"), col)
+                rgba.append(col)
+            mesh = vis.find("geometry/mesh")
+            if mesh is not None:
+                org = vis.find("origin")
+                meshes.append(UrdfMesh(mesh.get("filename"),
+                                       _vec(org.get("xyz") if org is not None else None),
+                                       _vec(org.get("rpy") if org is not None else None), col))
         geoms = []
         for k, col in enumerate(link.findall("collision")):
             box = col.find("geometry/box")
@@ -116,7 +139,10 @@ def parse_urdf(path: str) -> Urdf:
                 size=_vec(box.get("size")),
                 rgba=rgba[k] if k < len(rgba) else "0.7 0.7 0.75 1",
             ))
-        links[link.get("name")] = UrdfLink(link.get("name"), mass, com, inertia, geoms)
+        if meshes:      # colours belong to the meshes; collision boxes stay hidden
+            for g in geoms:
+                g.rgba = "0.7 0.7 0.75 0.3"
+        links[link.get("name")] = UrdfLink(link.get("name"), mass, com, inertia, geoms, meshes, inertia_rpy)
     joints = []
     for j in root.findall("joint"):
         org = j.find("origin")
@@ -162,7 +188,9 @@ class SceneOptions:
     camera_offset: Vec = (0.06, 0.0, 0.0)    # from head centre to the lens
     imu_pos: Vec = (0.0, 0.0, 0.0)           # on the torso frame
     friction: float = 1.0
-    self_collision: bool = False
+    self_collision: bool = True              # body parts that are not directly connected collide
+    mesh_dir: str = ""                       # URDF dir relative to the scene file (for mesh visuals)
+    camera_pos: Vec = (0.095, 0.0, 0.2)      # on the root link when the URDF has no "head" (chest front)
 
 
 def build_scene(urdf: Urdf, opts: SceneOptions) -> ET.Element:
@@ -192,6 +220,18 @@ def build_scene(urdf: Urdf, opts: SceneOptions) -> ET.Element:
     ET.SubElement(asset, "texture", name="sky", type="skybox", builtin="gradient",
                   rgb1="0.6 0.7 0.8", rgb2="0.1 0.12 0.15", width="256", height="256")
 
+    meshes = sorted({m.file for l in urdf.links.values() for m in l.meshes})
+    mesh_names = {f: os.path.splitext(os.path.basename(f))[0] for f in meshes}
+    for f in meshes:
+        ET.SubElement(asset, "mesh", name=mesh_names[f], file=os.path.join(opts.mesh_dir, f))
+    if meshes:
+        # visual meshes: group 1, no collisions, no mass (the URDF inertial is used)
+        dv = ET.SubElement(default, "default", {"class": "visual"})
+        ET.SubElement(dv, "geom", type="mesh", contype="0", conaffinity="0", group="1", density="0")
+        # collision boxes: group 3 (hidden in the viewer unless toggled)
+        dc = ET.SubElement(default, "default", {"class": "collision"})
+        ET.SubElement(dc, "geom", group="3")
+
     world = ET.SubElement(mj, "worldbody")
     ET.SubElement(world, "light", pos="0 0 3", dir="0 0 -1", directional="true")
     ET.SubElement(world, "geom", name="floor", type="plane", size="0 0 0.05", material="grid",
@@ -218,16 +258,28 @@ def build_scene(urdf: Urdf, opts: SceneOptions) -> ET.Element:
                 ja["range"] = f"{joint.lower:g} {joint.upper:g}"
             ET.SubElement(body, "joint", ja)
         if link.mass > 0:
-            ET.SubElement(body, "inertial", pos=_fmt(link.com), mass=f"{link.mass:g}",
-                          diaginertia=_fmt(link.inertia))
+            ia = {"pos": _fmt(link.com), "mass": f"{link.mass:g}", "diaginertia": _fmt(link.inertia)}
+            if any(abs(a) > 0 for a in link.inertia_rpy):
+                ia["quat"] = _fmt(rpy_to_quat(*link.inertia_rpy))
+            ET.SubElement(body, "inertial", ia)
         for k, g in enumerate(link.geoms):
-            ET.SubElement(body, "geom", name=f"{link.name}_g{k}", type="box", pos=_fmt(g.pos),
-                          size=_fmt([s / 2 for s in g.size]), rgba=g.rgba)
+            ga = {"name": f"{link.name}_g{k}", "type": "box", "pos": _fmt(g.pos),
+                  "size": _fmt([s / 2 for s in g.size]), "rgba": g.rgba}
+            if link.meshes:
+                ga["class"] = "collision"
+            ET.SubElement(body, "geom", ga)
+        for k, m in enumerate(link.meshes):
+            ma = {"name": f"{link.name}_v{k}", "class": "visual", "mesh": mesh_names[m.file],
+                  "pos": _fmt(m.pos), "rgba": m.rgba}
+            if any(abs(a) > 0 for a in m.rpy):
+                ma["quat"] = _fmt(rpy_to_quat(*m.rpy))
+            ET.SubElement(body, "geom", ma)
         if joint is None:
             ET.SubElement(body, "site", name="imu", pos=_fmt(opts.imu_pos), size="0.01")
-        if link.name == "head":
+        if link.name == "head" or (joint is None and "head" not in urdf.links):
             # MuJoCo cameras look along -z; xyaxes below make it look along +x (forward)
-            ET.SubElement(body, "camera", name="head_cam", pos=_fmt(opts.camera_offset),
+            cam_pos = opts.camera_offset if link.name == "head" else opts.camera_pos
+            ET.SubElement(body, "camera", name="head_cam", pos=_fmt(cam_pos),
                           xyaxes="0 -1 0 0 0 1", fovy=f"{opts.camera_fovy:g}")
         for j in urdf.children(link.name):
             add_body(body, urdf.links[j.child], j)
@@ -269,6 +321,9 @@ def add_person(world: ET.Element, pos: Vec) -> None:
 
 def write_scene(urdf_path: str, out_path: str, opts: SceneOptions) -> str:
     """Parse the URDF, build the scene, write it pretty-printed. Returns out_path."""
+    if not opts.mesh_dir:
+        out_dir = os.path.dirname(os.path.abspath(out_path))
+        opts.mesh_dir = os.path.relpath(os.path.dirname(os.path.abspath(urdf_path)), out_dir)
     mj = build_scene(parse_urdf(urdf_path), opts)
     ET.indent(mj)
     header = ("<!-- Generated by tools/make_scene.py from "

@@ -67,7 +67,7 @@ class Studio(Controller):
         self.keys = keys
         self.write = write
         self.player = MotionPlayer(cfg.joints, interp, EDIT_MOVE_S)
-        legs = [n for n in self.joints.names if not ("shoulder" in n or "arm" in n)]
+        legs = [n for n in self.joints.names if any(k in n for k in ("hip", "knee", "ankle", "foot"))]
         self.order = legs + [n for n in self.joints.names if n not in legs]
         self.sel = 0
         self.step_i = 1

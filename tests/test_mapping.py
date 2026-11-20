@@ -10,10 +10,10 @@ def test_stand_is_offset_plus_90(cfg):
 
 
 def test_offset_plus_rel_stays_within_90(cfg):
-    j = cfg.joints["L_knee"]            # offset -39
+    j = replace(cfg.joints["L_knee"], min_rad=math.radians(-120), max_rad=math.radians(120))   # offset -39
     lo, hi = joint_range(j)
     assert math.isclose(math.degrees(lo), -51.0)   # -90 - (-39)
-    assert math.isclose(math.degrees(hi), 90.0)
+    assert math.isclose(math.degrees(hi), 120.0)   # 90 - (-39) = 129 is wider than the table limit
     assert to_servo_deg(j, math.radians(-80)) == to_servo_deg(j, lo)
 
 

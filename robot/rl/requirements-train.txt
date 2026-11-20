@@ -1,0 +1,12 @@
+# RL training (laptop / desktop, Python >= 3.10). Not needed on the Pi.
+#   uv venv ~/.venvs/humanoid-train --python 3.12
+#   uv pip install --python ~/.venvs/humanoid-train -r robot/rl/requirements-train.txt
+mujoco==3.3.0          # same physics as the robot stack (requirements-dev.txt)
+numpy>=1.26
+pyyaml>=6.0
+torch>=2.3
+stable-baselines3>=2.3
+gymnasium>=0.29
+tensorboard>=2.16
+onnx>=1.16
+onnxruntime>=1.18

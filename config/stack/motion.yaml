@@ -6,7 +6,7 @@ blend_s: 0.8               # default time to move from the current pose into a n
 motions_dir: robot/motion/motions    # hand-tuned keyframe files (json); generated if missing
 
 stance:
-  height_ratio: 0.86       # ankle depth below the hip-pitch axis, as a fraction of thigh + shin
+  height_ratio: 0.95       # ankle depth below the hip-pitch axis, as a fraction of thigh + shin (v3: knees ~36 deg, MG996R torque)
   torso_pitch_deg: 0.0     # lean the torso forward (+) by tilting the legs
 
 walk:                      # static (quasi-static) gait: CoM over the stance foot before each lift
@@ -44,3 +44,5 @@ turn:                      # no hip yaw: stagger the feet in the air, then sciss
 gestures:
   wave_cycles: 3
   wave_period: 0.8
+  bow_lean_deg: 13.0       # robot v3 tips over beyond ~16 deg (heavy torso, 16 cm feet)
+  bow_arms_deg: 20.0       # shoulder pitch during the bow (+ = arms back, balances the lean)
