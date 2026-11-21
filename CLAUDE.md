@@ -64,6 +64,8 @@ robot/behavior/
   fsm.py                   BehaviorFSM (the Controller): states, ALLOWED commands per state
   fall.py walking.py       FallDetector; Walker interface + KeyframeWalker (gait_mode from vx, vy, yaw)
   runtime.py               RobotRuntime = backend + RobotApp + FSM; send(cmd) routes estop/reset to the app
+robot/calibration.py       joint directions from the URDF, IMU axis_map from 2 poses, robot.yaml edits
+                           (tools/calibrate_signs.py, tools/imu_setup.py, tools/deploy_pi.sh)
 robot/rl/                  RL walking (M6). Python 3.9 except train_ppo.py (training venv, see requirements-train.txt)
   obs.py                   PolicyIO: observation (IMU + last safe command + command + clock) and action -> targets
   env.py                   WalkEnv on SimBackend + Safety (same path as the robot), rewards, domain randomisation

@@ -150,3 +150,11 @@ Differences: joint names instead of channels, mirror signs from the URDF, frame 
 (press `L`), `A` appends mirrored copies of all frames, `{`/`}` move frames, redraws on the alternate
 screen (no scrollback spam), runs on sim / real / dry. Legacy gait files convert with
 `python -m robot.motion.keyframe gait.json --import robot/motion/motions/my_gait.json`.
+
+## Real robot setup for RL walking
+
+1. Copy the policy: on the Mac `tools/deploy_pi.sh user@pi-ip --pull`
+2. IMU mounting (robot off, held in your hands): `python tools/imu_setup.py`
+3. Servo directions (robot hanging, feet free): `python tools/calibrate_signs.py --backend real`
+4. Hanging walk test: `python -m robot.run --backend real --at 5:walk:vx=0.06,duration=8`
+   (space = e-stop, twice = limp). Only then on the floor, held by a string or harness.
