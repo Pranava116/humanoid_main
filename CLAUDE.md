@@ -34,7 +34,7 @@
   convention with the limits from robot.yaml. Rerun it after a CAD re-export or a limit change.
   `models/humanoid_latest.urdf` is the old model, kept but unused.
 - **IMU frame**: body x forward, y left, z up. `ImuReading.quat` is (w, x, y, z) world-from-body.
-- **Hardware**: PCA9685 0x40 (+ optional 0x41) on software I2C bus 3 via `ExtendedI2C(3)`; MPU9250 0x68 on bus 1
+- **Hardware**: PCA9685 0x40 (+ optional 0x41) on software I2C bus 3 via `ExtendedI2C(3)`; MPU9250 0x68 on the same bus 3 (robot v3 wiring)
   (configurable). 50 Hz, 500–2500 µs. No encoders: commands are open loop.
 
 ## Architecture

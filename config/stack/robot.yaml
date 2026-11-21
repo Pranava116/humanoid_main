@@ -12,7 +12,7 @@
 
 i2c:
   servo_bus: 3          # software I2C: SDA GPIO23 (pin 16), SCL GPIO24 (pin 18)
-  imu_bus: 1            # hardware I2C (pins 3/5); may move to 3
+  imu_bus: 3            # same software I2C bus as the PCA9685 (IMU + servo board share SDA/SCL)
 
 boards:                 # PCA9685 boards
   - {address: 0x40, required: true}

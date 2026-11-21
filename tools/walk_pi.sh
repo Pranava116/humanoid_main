@@ -14,8 +14,9 @@ cd "$(dirname "$0")/.."
 
 PY=python3
 [ -x .venv/bin/python ] && PY=.venv/bin/python
-SERVO_BUS=3
-IMU_BUS=1
+read -r SERVO_BUS IMU_BUS < <($PY -c "
+from robot.config import load_config
+c = load_config(); print(c.get('robot.i2c.servo_bus', 3), c.get('robot.i2c.imu_bus', 3))" 2>/dev/null || echo "3 3")
 POLICY=models/policies/walk.onnx
 NO_IMU=""
 
