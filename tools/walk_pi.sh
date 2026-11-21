@@ -27,15 +27,21 @@ ask()  { read -r -p "$1 [y/N] " a; [ "$(echo "$a" | tr A-Z a-z)" = "y" ]; }
 check() {
     echo "== check"
     local fail=0
-    if command -v i2cdetect >/dev/null; then
-        if i2cdetect -y $SERVO_BUS 2>/dev/null | grep -q " 40"; then ok "PCA9685 0x40 on I2C bus $SERVO_BUS"
-        else bad "PCA9685 0x40 not found on bus $SERVO_BUS (wiring, servo board power, dtoverlay=i2c-gpio,bus=3,...)"; fail=1; fi
-        if i2cdetect -y $IMU_BUS 2>/dev/null | grep -q " 68"; then ok "MPU9250 0x68 on I2C bus $IMU_BUS"
-        else bad "MPU9250 0x68 not found on bus $IMU_BUS: walking on the floor needs it (hang test can use --no-imu)"
-             NO_IMU="--no-imu"; fi
-    else
-        bad "i2cdetect missing: sudo apt install i2c-tools"; fail=1
-    fi
+    probe() {  # bus addr register -> prints the error, exit 0 when the device answers
+        $PY -c "
+import sys
+from smbus2 import SMBus
+try:
+    with SMBus($1) as b: b.read_byte_data($2, $3)
+except Exception as e:
+    print(e); sys.exit(1)" 2>&1
+    }
+    local err
+    if err=$(probe "$SERVO_BUS" 0x40 0x00); then ok "PCA9685 0x40 on I2C bus $SERVO_BUS"
+    else bad "PCA9685 0x40 not answering on bus $SERVO_BUS: $err (check: sudo i2cdetect -y $SERVO_BUS)"; fail=1; fi
+    if err=$(probe "$IMU_BUS" 0x68 0x75); then ok "MPU9250 0x68 on I2C bus $IMU_BUS"
+    else bad "MPU9250 0x68 not answering on bus $IMU_BUS: $err. Floor walking needs it (hang test runs with --no-imu)"
+         NO_IMU="--no-imu"; fi
     if [ -f "$POLICY" ]; then ok "policy $POLICY"
     else bad "no $POLICY: on the Mac run tools/deploy_pi.sh user@pi --pull"; fail=1; fi
     if $PY -c "import onnxruntime, adafruit_servokit, smbus2, yaml, numpy" 2>/dev/null; then ok "python packages ($PY)"
