@@ -3,6 +3,7 @@
 #
 #   tools/walk_pi.sh            # all steps in order, asks before each one
 #   tools/walk_pi.sh check      # only: I2C devices, policy file, python packages
+#   tools/walk_pi.sh servo [ch] # only: wiggle ONE servo directly (default ch 8 = R knee), power test
 #   tools/walk_pi.sh imu        # only: IMU mounting (robot in your hands, servos may be off)
 #   tools/walk_pi.sh signs      # only: servo directions (robot HANGING)
 #   tools/walk_pi.sh hang       # only: walk in the air (robot HANGING)
@@ -55,6 +56,28 @@ OnnxPolicy(c.path(c.get('rl.policy_file')))" 2>/dev/null; then ok "policy loads,
     return $fail
 }
 
+servo() {
+    local ch="${1:-8}"
+    echo "== wiggle channel $ch directly (no robot code). It should move 4 times."
+    $PY -c "
+import time
+from adafruit_servokit import ServoKit
+from adafruit_extended_bus import ExtendedI2C
+from smbus2 import SMBus
+k = ServoKit(channels=16, i2c=ExtendedI2C($SERVO_BUS), address=0x40, frequency=50)
+k.servo[$ch].set_pulse_width_range(500, 2500)
+for a in (80, 100, 80, 100, 90):
+    k.servo[$ch].angle = a; print('  angle', a); time.sleep(0.8)
+with SMBus($SERVO_BUS) as b:
+    on = [b.read_byte_data(0x40, 0x06 + 4 * $ch + i) for i in range(4)]
+    mode1 = b.read_byte_data(0x40, 0x00)
+k.servo[$ch].angle = None
+pulse = ((on[3] & 0x0F) << 8 | on[2]) - ((on[1] & 0x0F) << 8 | on[0])
+print('  PCA9685 sends a pulse on ch $ch:', 'YES' if pulse > 0 else 'NO', '(mode1 0x%02x)' % mode1)
+print('  pulse YES but nothing moved -> servo POWER: 6 V on the V+ screw terminal, GND shared, OE pin not at 3.3 V')
+"
+}
+
 imu()   { echo "== IMU mounting: hold the robot in your hands"; $PY tools/imu_setup.py; }
 signs() { echo "== servo directions: robot must HANG, feet off the ground"; $PY tools/calibrate_signs.py --backend real; }
 hang()  { echo "== walk in the air: robot must HANG"; $PY -m robot.run --backend real $NO_IMU --at "5:walk:vx=0.06,duration=8" --duration 18; }
@@ -66,8 +89,9 @@ walk() {
 }
 
 case "${1:-all}" in
-    -h|--help) sed -n '2,11p' "$0" | sed 's/^# \{0,1\}//' ;;
+    -h|--help) sed -n '2,12p' "$0" | sed 's/^# \{0,1\}//' ;;
     check) check ;;
+    servo) shift; servo "$@" ;;
     imu)   imu ;;
     signs) signs ;;
     hang)  check >/dev/null; hang ;;
