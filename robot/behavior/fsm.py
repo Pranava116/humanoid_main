@@ -1,6 +1,6 @@
 """Behaviour state machine.
 
-    BOOT -> STAND -> IDLE <-> WALKING | GESTURE | SIT | FOLLOW
+    BOOT -> STAND -> IDLE <-> WALKING | GESTURE | SIT | FOLLOW | MIMIC
     any (after BOOT) -> FALLEN   (fall detector)
     any              -> ESTOP    (e-stop from keyboard / dashboard / voice)
     FALLEN | ESTOP   -> STAND    only on an explicit "reset"
@@ -28,19 +28,20 @@ from robot.motion.player import MotionPlayer
 
 log = logging.getLogger(__name__)
 
-BOOT, STAND, IDLE, WALKING, GESTURE, SIT, FOLLOW, FALLEN, ESTOP = (
-    "BOOT", "STAND", "IDLE", "WALKING", "GESTURE", "SIT", "FOLLOW", "FALLEN", "ESTOP")
-STATES = (BOOT, STAND, IDLE, WALKING, GESTURE, SIT, FOLLOW, FALLEN, ESTOP)
+BOOT, STAND, IDLE, WALKING, GESTURE, SIT, FOLLOW, MIMIC, FALLEN, ESTOP = (
+    "BOOT", "STAND", "IDLE", "WALKING", "GESTURE", "SIT", "FOLLOW", "MIMIC", "FALLEN", "ESTOP")
+STATES = (BOOT, STAND, IDLE, WALKING, GESTURE, SIT, FOLLOW, MIMIC, FALLEN, ESTOP)
 
 MOVING = {"walk", "turn", "side_step"}
 ALLOWED: Dict[str, Set[str]] = {
     BOOT: {"say", "person"},
     STAND: {"stop", "say", "person"},
-    IDLE: MOVING | {"gesture", "sit", "stand", "follow", "come_here", "stop", "say", "person"},
+    IDLE: MOVING | {"gesture", "sit", "stand", "follow", "come_here", "stop", "say", "person", "mimic"},
     WALKING: MOVING | {"stop", "follow", "come_here", "say", "person"},
     GESTURE: {"stop", "say", "person"},
     SIT: {"stand", "stop", "say", "person"},
     FOLLOW: MOVING | {"stop", "follow", "come_here", "say", "person"},
+    MIMIC: {"mimic", "stop", "stand", "say", "person"},
     FALLEN: {"say", "person"},
     ESTOP: {"say", "person"},
 }
@@ -93,6 +94,12 @@ class BehaviorFSM(Controller):
         self.rejected: Deque[str] = deque(maxlen=20)
         self.history: Deque[str] = deque(maxlen=50)
         self.listeners: list = []          # callables(old, new) on every state change
+        m = b.get("mimic", {}) or {}
+        self.mimic_timeout = float(m.get("timeout_s", 0.5))
+        self.mimic_smooth = float(m.get("smooth_s", 0.12))
+        self.mimic_target: Dict[str, float] = {}
+        self.mimic_pose: Dict[str, float] = {}
+        self.mimic_last = 0.0
 
     # ---------------------------------------------------------------- helpers
     def _goto(self, state: str, why: str = "") -> None:
@@ -114,6 +121,12 @@ class BehaviorFSM(Controller):
         self.queue.put(cmd)
 
     def _reject(self, cmd: Command, why: str) -> None:
+        if cmd.kind == "mimic":          # sent 30x per second: one line, not a flood
+            text = f"mimic rejected in {self.state}: {why}"
+            if not self.rejected or self.rejected[-1] != text:
+                self.rejected.append(text)
+                log.info(text)
+            return
         text = f"{cmd} rejected in {self.state}: {why}"
         self.rejected.append(text)
         log.info(text)
@@ -136,7 +149,13 @@ class BehaviorFSM(Controller):
             if self.follow is not None and hasattr(self.follow, "on_observation"):
                 self.follow.on_observation(cmd.args)
             return
+        if k == "mimic":
+            self._mimic(cmd)
+            return
         if k == "stop":
+            if self.state == MIMIC:
+                self._end_mimic("stop")
+                return
             if self.state in (WALKING, FOLLOW):
                 self.walker.stop()
                 self.walk_until = None
@@ -147,6 +166,8 @@ class BehaviorFSM(Controller):
                 self._stand_up("stop")
             return
         if k == "stand":
+            if self.state == MIMIC:
+                self.player.pose = dict(self.mimic_pose)
             self._stand_up("stand")
             return
         if k == "sit":
@@ -181,6 +202,33 @@ class BehaviorFSM(Controller):
             self.follow.start(stop_when_close=(k == "come_here"))
             self.behavior = k
             self._goto(FOLLOW, k)
+
+    def _mimic(self, cmd: Command) -> None:
+        """Copy the joints in cmd.args['q'] (rad); unknown joint names are ignored."""
+        q = cmd.args.get("q") or {}
+        if self.state != MIMIC:
+            self.mimic_pose = dict(self.player.pose)
+            self.mimic_target = dict(self.mimic_pose)
+            self.behavior = "mimic"
+            self._goto(MIMIC, "mimic")
+        for name, v in q.items():
+            if name in self.mimic_target:
+                self.mimic_target[name] = float(v)
+        self.mimic_last = self.t
+
+    def _end_mimic(self, why: str) -> None:
+        self.player.pose = dict(self.mimic_pose)     # stand up from where the joints really are
+        self._stand_up(why)
+
+    def _tick_mimic(self, dt: float) -> Dict[str, float]:
+        if self.t - self.mimic_last > self.mimic_timeout:
+            self._end_mimic("mimic: no pose for %.1f s" % self.mimic_timeout)
+            return self.player.tick(dt)
+        a = min(1.0, dt / self.mimic_smooth) if self.mimic_smooth > 0 else 1.0
+        for n, target in self.mimic_target.items():
+            cur = self.mimic_pose.get(n, target)
+            self.mimic_pose[n] = cur + a * (target - cur)
+        return dict(self.mimic_pose)
 
     def _velocity(self, cmd: Command) -> "tuple[float, float, float]":
         a = cmd.args
@@ -238,6 +286,8 @@ class BehaviorFSM(Controller):
             else:
                 self.behavior = f"walk:{self.walker.mode}"
             return pose
+        if st == MIMIC:
+            return self._tick_mimic(dt)
         if st == FOLLOW:
             v = self.follow.update(ctx) if self.follow else None
             if v is None:

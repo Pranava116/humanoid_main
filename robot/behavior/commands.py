@@ -10,9 +10,9 @@ from typing import Any, Dict, List, Optional
 
 KINDS = (
     "stand", "sit", "stop", "walk", "turn", "side_step", "gesture",
-    "follow", "come_here", "estop", "reset", "say", "person",
+    "follow", "come_here", "estop", "reset", "say", "person", "mimic",
 )
-SOURCES = ("voice", "dashboard", "teleop", "auto", "test", "network", "perception")
+SOURCES = ("voice", "dashboard", "teleop", "auto", "test", "network", "perception", "mimic")
 
 
 _ids = itertools.count(1)
@@ -24,6 +24,7 @@ class Command:
 
     walk: vx, vy (m/s), yaw (rad/s), optional duration (s) | turn: direction 'L'/'R', optional duration
     side_step: direction 'L'/'R' | gesture: name (wave, wave_left, bow, ...) | say: text
+    mimic: q {joint: rad} (the joints to copy; others hold the stand pose), sent ~30x per second
     """
 
     kind: str

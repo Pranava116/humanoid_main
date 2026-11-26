@@ -31,3 +31,7 @@ gestures:                    # command -> library motion
   bow: bow
   raise_arms: raise_arms
   squat: squat
+
+mimic:                       # copy a person's arms/legs from the camera (tools/mimic.py)
+  timeout_s: 0.5             # no pose for this long -> stand up again (laptop closed, person left)
+  smooth_s: 0.12             # low-pass time constant on the received angles

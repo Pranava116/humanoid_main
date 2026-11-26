@@ -66,6 +66,9 @@ robot/behavior/
   runtime.py               RobotRuntime = backend + RobotApp + FSM; send(cmd) routes estop/reset to the app
 robot/calibration.py       joint directions from the URDF, IMU axis_map from 2 poses, robot.yaml edits
                            (tools/calibrate_signs.py, tools/imu_setup.py, tools/deploy_pi.sh)
+robot/kinematics.py        numpy FK of the URDF tree (joint anchors, axes, subtree CoM)
+robot/mimic/               copy a person from the Mac webcam: pose.py (MediaPipe), retarget.py (limb
+                           directions -> joints), tools/mimic.py sends 'mimic' commands -> FSM state MIMIC
 robot/rl/                  RL walking (M6). Python 3.9 except train_ppo.py (training venv, see requirements-train.txt)
   obs.py                   PolicyIO: observation (IMU + last safe command + command + clock) and action -> targets
   env.py                   WalkEnv on SimBackend + Safety (same path as the robot), rewards, domain randomisation

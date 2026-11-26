@@ -158,3 +158,16 @@ screen (no scrollback spam), runs on sim / real / dry. Legacy gait files convert
 3. Servo directions (robot hanging, feet free): `python tools/calibrate_signs.py --backend real`
 4. Hanging walk test: `python -m robot.run --backend real --at 5:walk:vx=0.06,duration=8`
    (space = e-stop, twice = limp). Only then on the floor, held by a string or harness.
+
+## Copy my movements (mimic)
+
+The Mac webcam tracks your body (MediaPipe) and the robot copies it like a mirror.
+
+```
+.venv/bin/pip install -r robot/mimic/requirements-mimic.txt     # once, on the Mac
+.venv/bin/python tools/mimic.py --local --backend sim            # try on the sim robot first
+python -m robot.run --backend real                               # on the Pi
+.venv/bin/python tools/mimic.py --connect <pi-ip> --parts arms   # on the Mac: arms | legs | full | left_arm,...
+```
+Legs move together (squat) unless `--free-legs`. q / Esc stops; the robot stands up again
+by itself 0.5 s after the poses stop.

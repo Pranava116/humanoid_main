@@ -15,42 +15,11 @@ from typing import Dict, List, Sequence, Tuple
 
 import numpy as np
 
-from robot.rotations import rpy_to_mat
+from robot.kinematics import Kinematics
 from robot.sim.scene import Urdf
 
 _WORDS = {(0, 1): "FORWARD", (0, -1): "BACKWARD", (1, 1): "to the robot's LEFT",
           (1, -1): "to the robot's RIGHT", (2, 1): "UP", (2, -1): "DOWN"}
-
-
-def _world_frames(urdf: Urdf) -> Tuple[Dict[str, Tuple[np.ndarray, np.ndarray]],
-                                       Dict[str, Tuple[np.ndarray, np.ndarray]]]:
-    """World (R, p) of every link and every joint frame at q = 0."""
-    links = {urdf.root: (np.eye(3), np.zeros(3))}
-    joints: Dict[str, Tuple[np.ndarray, np.ndarray]] = {}
-    todo = [urdf.root]
-    while todo:
-        parent = todo.pop()
-        R, p = links[parent]
-        for j in urdf.children(parent):
-            Rj = R @ np.array(rpy_to_mat(*j.rpy))
-            pj = p + R @ np.array(j.origin)
-            joints[j.name] = (Rj, pj)
-            links[j.child] = (Rj, pj)
-            todo.append(j.child)
-    return links, joints
-
-
-def _subtree_com(urdf: Urdf, link: str, frames: Dict[str, Tuple[np.ndarray, np.ndarray]]) -> np.ndarray:
-    total, acc = 0.0, np.zeros(3)
-    todo = [link]
-    while todo:
-        name = todo.pop()
-        L = urdf.links[name]
-        R, p = frames[name]
-        acc += L.mass * (p + R @ np.array(L.com))
-        total += L.mass
-        todo.extend(j.child for j in urdf.children(name))
-    return acc / max(total, 1e-9)
 
 
 def describe(v: Sequence[float]) -> str:
@@ -75,11 +44,12 @@ def joint_directions(urdf: Urdf) -> Dict[str, Tuple[np.ndarray, str]]:
     Ankle pitch is described by the toes, foot roll by the left edge of the foot, every
     other joint by the centre of mass of everything below it.
     """
-    links, joints = _world_frames(urdf)
+    kin = Kinematics(urdf)
+    _, joints = kin.frames()
     out: Dict[str, Tuple[np.ndarray, str]] = {}
     for j in urdf.revolute():
-        R, p = joints[j.name]
-        axis = R @ np.array(j.axis, dtype=float)
+        _, p = joints[j.name]
+        axis = kin.world_axis(j.name)
         name = j.name.lower()
         if "ankle" in name:
             v = np.cross(axis, [1.0, 0.0, 0.0])
@@ -88,7 +58,7 @@ def joint_directions(urdf: Urdf) -> Dict[str, Tuple[np.ndarray, str]]:
             v = np.cross(axis, [0.0, 1.0, 0.0])
             text = f"the LEFT edge of the foot moves {describe(v)}"
         else:
-            v = np.cross(axis, _subtree_com(urdf, j.child, links) - p)
+            v = np.cross(axis, kin.subtree_com(j.child) - p)
             text = f"the part below the joint swings {describe(v)}{_side_hint(j.name, v)}"
         out[j.name] = (v, text)
     return out
