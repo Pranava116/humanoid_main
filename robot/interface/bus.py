@@ -196,6 +196,7 @@ class ZmqLink(Link):
         self.push.setsockopt(zmq.SNDHWM, 100)
         self.push.connect(self.cmd_addr)
         self._push_lock = threading.Lock()
+        self.dropped = 0
         self.sub = self.ctx.socket(zmq.SUB)
         self.sub.setsockopt(zmq.LINGER, 0)
         for t in (TOPIC_TEL, TOPIC_LOG, TOPIC_CAM):
@@ -235,7 +236,12 @@ class ZmqLink(Link):
         if cmd.source == "test":
             cmd.source = self.source
         with self._push_lock:
-            self.push.send(json.dumps(cmd.to_dict()).encode())
+            try:     # never block the caller (a camera loop froze when the robot was unreachable)
+                self.push.send(json.dumps(cmd.to_dict()).encode(), self.zmq.NOBLOCK)
+            except self.zmq.Again:
+                self.dropped += 1
+                if self.dropped in (1, 100) or self.dropped % 1000 == 0:
+                    log.warning("link: robot not reachable at %s, %d commands dropped", self.cmd_addr, self.dropped)
 
     def status(self) -> Dict[str, Any]:
         return self._status

@@ -190,3 +190,17 @@ def test_run_script_dry(capsys):
     from robot import run
     assert run.main(["--backend", "dry", "--fast", "--duration", "6", "--no-link", "--status-every", "0",
                      "--at", "3:gesture:name=bow", "--at", "3.5:estop"]) == 0
+
+
+def test_zmq_send_never_blocks_without_robot(cfg):
+    """A client with no robot on the other end must not freeze (mimic camera loop)."""
+    import time
+    pytest.importorskip("zmq")
+    from robot.behavior.commands import Command
+    from robot.interface.bus import ZmqLink
+    link = ZmqLink(cfg, host="127.0.0.1")
+    t0 = time.monotonic()
+    for _ in range(500):
+        link.send(Command("say", {"text": "x"}))
+    assert time.monotonic() - t0 < 2.0
+    link.close()

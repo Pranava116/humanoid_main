@@ -64,7 +64,7 @@ class Camera:
 
 
 def pose_loop(args: argparse.Namespace, cfg: Config, send: Callable[[Command], None],
-              stop: threading.Event, window: bool) -> None:
+              stop: threading.Event, window: bool, link: Any = None) -> None:
     """Camera (or demo person) -> joint angles -> 'mimic' commands at args.rate Hz."""
     parts = parse_parts(args.parts)
     urdf = parse_urdf(cfg.path(str(cfg.get("robot.sim.urdf", "models/humanoid_v3.urdf"))))
@@ -91,14 +91,16 @@ def pose_loop(args: argparse.Namespace, cfg: Config, send: Callable[[Command], N
                     send(Command("mimic", {"q": q}, "mimic"))
                     n_sent += 1
                     seen = True
+            robot = "" if link is None else (
+                f"  robot {link.status().get('state', '?')}" if link.connected else "  robot NOT CONNECTED")
             if time.monotonic() - t_report >= 2.0:
-                print(f"  {n_sent / (time.monotonic() - t_report):4.1f} poses/s"
+                print(f"  {n_sent / (time.monotonic() - t_report):4.1f} poses/s{robot}"
                       + ("" if seen else "  (no person seen: step back so the camera sees you)"))
                 n_sent, t_report, seen = 0, time.monotonic(), False
             if window and frame is not None:
                 import cv2
                 from robot.mimic.pose import draw
-                cv2.imshow("mimic (q to quit)", draw(frame, pts, "tracking" if lm is not None else "no person"))
+                cv2.imshow("mimic (q to quit)", draw(frame, pts, ("tracking" if lm is not None else "no person") + robot))
                 if cv2.waitKey(1) & 0xFF in (ord("q"), 27):
                     break
             dt = period - (time.monotonic() - t0)
@@ -146,8 +148,12 @@ def main(argv: Optional[List[str]] = None) -> int:
         from robot.interface.bus import ZmqLink
         cfg = load_config(args.config_dir)
         link = ZmqLink(cfg, host=args.connect, source="mimic")
+        print(f"connecting to the robot at {link.cmd_addr} ...")
+        if not link.wait_connected(5.0):
+            print("  no telemetry from the robot yet: is python -m robot.run running on the Pi, same Wi-Fi?\n"
+                  "  test: nc -vz <pi-ip> 5555 and 5556. Continuing, poses are dropped until it connects.")
         try:
-            pose_loop(args, cfg, link.send, stop, window=not args.no_window and not args.demo)
+            pose_loop(args, cfg, link.send, stop, window=not args.no_window and not args.demo, link=link)
         finally:
             time.sleep(0.3)            # let the final 'stop' go out
             link.close()
